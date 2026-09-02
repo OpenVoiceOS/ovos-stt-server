@@ -34,6 +34,23 @@ class FakeModel:
         return "hello world"
 
 
+class LangRecordingModel:
+    """Model stub that records the language it was called with.
+
+    Mirrors the real onnx-asr plugin's behaviour: it has no notion of
+    ``"auto"`` and would raise on a literal ``"auto"`` tag.
+    """
+
+    def __init__(self):
+        self.received_lang = None
+
+    def process_audio(self, audio, lang: str = "auto") -> str:
+        if lang == "auto":
+            raise KeyError("<|auto|>")
+        self.received_lang = lang
+        return "hello world"
+
+
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -172,6 +189,27 @@ class TestTranscriptions:
             data={"model": "whisper-1", "response_format": "xml"},
         )
         assert resp.status_code == 422
+
+    def test_missing_language_falls_back_to_concrete_lang(self):
+        """No ``language`` field must not leak the literal "auto" to the engine.
+
+        The onnx-asr NeMo tokenizer has no ``<|auto|>`` token and raises on a
+        literal "auto" tag, matching the live 500 seen in production.
+        """
+        from ovos_stt_http_server.routers.openai_whisper import make_openai_whisper_router
+
+        stub = LangRecordingModel()
+        app = FastAPI()
+        app.include_router(make_openai_whisper_router(stub))
+        c = TestClient(app)
+        resp = c.post(
+            "/openai/v1/audio/transcriptions",
+            files={"file": ("audio.wav", _wav_bytes(), "audio/wav")},
+            data={"model": "whisper-1"},
+        )
+        assert resp.status_code == 200
+        assert stub.received_lang is not None
+        assert stub.received_lang != "auto"
 
     def test_raw_bytes_fallback(self, client):
         """Non-WAV bytes (raw PCM) are accepted via fallback path."""

@@ -23,6 +23,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse, PlainTextResponse
+from ovos_config import Configuration
 from pydantic import BaseModel, Field
 
 from ovos_plugin_manager.utils.audio import AudioData
@@ -95,6 +96,28 @@ def _audio_data_from_upload(file_bytes: bytes, sample_rate: int = 16000, sample_
     return AudioData(file_bytes, sample_rate, sample_width)
 
 
+def _resolve_lang(language: Optional[str]) -> str:
+    """Resolve a requested language to a concrete BCP-47 tag.
+
+    ``None``/``"auto"`` fall back to the server's configured default language
+    (``mycroft.conf``'s top-level ``lang``), and finally to ``"en"`` if that
+    is itself unset or ``"auto"``. STT plugins expect a concrete language and
+    error out on a literal ``"auto"`` tag.
+
+    Args:
+        language: BCP-47 language code, or ``None``/``"auto"`` for auto-detect.
+
+    Returns:
+        A concrete BCP-47 language code, never ``"auto"``.
+    """
+    lang = language or "auto"
+    if lang == "auto":
+        lang = Configuration().get("lang") or "en"
+        if lang == "auto":
+            lang = "en"
+    return lang
+
+
 # ---------------------------------------------------------------------------
 # Router factory
 # ---------------------------------------------------------------------------
@@ -153,7 +176,7 @@ def make_openai_whisper_router(model, translator=None) -> APIRouter:
             raise HTTPException(status_code=400, detail="Empty audio file.")
 
         audio = _audio_data_from_upload(file_bytes)
-        lang = language or "auto"
+        lang = _resolve_lang(language)
 
         start = time.time()
         transcript = model.process_audio(audio, lang) or ""
@@ -163,8 +186,7 @@ def make_openai_whisper_router(model, translator=None) -> APIRouter:
         if translate and translator is not None and transcript:
             try:
                 transcript = translator.translate(
-                    transcript, target="en",
-                    source=None if lang == "auto" else lang,
+                    transcript, target="en", source=lang,
                 ) or transcript
             except Exception:
                 pass  # fall back to the untranslated transcript
@@ -187,7 +209,7 @@ def make_openai_whisper_router(model, translator=None) -> APIRouter:
 
         if fmt == "verbose_json":
             obj = VerboseTranscriptionResponse(
-                language=lang if lang != "auto" else "en",
+                language=lang,
                 duration=round(duration, 3),
                 text=transcript,
                 segments=[
