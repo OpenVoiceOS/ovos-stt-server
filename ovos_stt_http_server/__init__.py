@@ -26,6 +26,19 @@ from starlette.requests import Request
 LOG.set_level("ERROR")  # avoid server side logs
 
 
+def resolve_lang(lang: Optional[str]) -> str:
+    """Turn a requested language into one an STT plugin can use.
+
+    Plugins are handed a concrete BCP-47 tag. ``"auto"`` is a request for
+    detection, not a language: a plugin that receives it either errors or maps
+    it to a vocabulary token its model does not have.
+    """
+    if lang and lang != "auto":
+        return lang
+    lang = Configuration().get("lang", "en-us")
+    return "en-us" if lang == "auto" else lang
+
+
 def _load_translator():
     """Load the configured OVOS translate plugin for /audio/translations.
 
@@ -124,6 +137,7 @@ class ModelContainer(TransformerPipelines):
         audio, context = self.transform_audio(audio)
         if lang == "auto" and context.get("stt_lang"):
             lang = context["stt_lang"]
+        lang = resolve_lang(lang)
         utterance = self.engine.execute(audio, language=lang) or ""
         return self.transform_utterance(utterance, lang)
 

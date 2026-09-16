@@ -27,6 +27,8 @@ from pydantic import BaseModel, Field
 
 from ovos_plugin_manager.utils.audio import AudioData
 
+from ovos_stt_http_server import resolve_lang
+
 
 # ---------------------------------------------------------------------------
 # Response schemas
@@ -153,7 +155,7 @@ def make_openai_whisper_router(model, translator=None) -> APIRouter:
             raise HTTPException(status_code=400, detail="Empty audio file.")
 
         audio = _audio_data_from_upload(file_bytes)
-        lang = language or "auto"
+        lang = resolve_lang(language)
 
         start = time.time()
         transcript = model.process_audio(audio, lang) or ""

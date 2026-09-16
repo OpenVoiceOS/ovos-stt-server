@@ -38,6 +38,26 @@ def test_model_container_basic(load_stt):
     assert mc.detect_language(b"x") == ("en", 0.99)
 
 
+@patch("ovos_stt_http_server.Configuration")
+@patch("ovos_stt_http_server.load_stt_plugin")
+def test_model_container_process_audio_auto_falls_back_to_configured_lang(load_stt, config_cls):
+    """process_audio must not forward the literal "auto" to the plugin.
+
+    Regression: with no audio transformer supplying ``stt_lang``, "auto" was
+    passed straight through as ``language="auto"`` to ``engine.execute``. STT
+    plugins do not understand "auto" (e.g. onnxasr maps it to a vocabulary
+    token the model does not have) and this made every default-language
+    request fail. It must fall back to the configured default language.
+    """
+    def fake_get(key, default=None):
+        return {"lang": "pt-pt"}.get(key, default)
+
+    config_cls.return_value.get.side_effect = fake_get
+    load_stt.return_value = FakeSTT
+    mc = srv.ModelContainer("fake")
+    assert mc.process_audio(b"x", "auto") == "transcribed:pt-pt"
+
+
 @patch("ovos_stt_http_server.load_stt_plugin")
 def test_model_container_load_failure(load_stt):
     load_stt.return_value = None

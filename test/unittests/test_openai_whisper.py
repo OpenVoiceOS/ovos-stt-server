@@ -286,3 +286,43 @@ def test_translations_without_translator_returns_transcript():
     )
     assert resp.status_code == 200
     assert resp.json()["text"] == "hello world"
+
+
+class LangCapturingModel:
+    """Model stub that records the language the router handed it."""
+
+    def __init__(self):
+        self.lang = None
+
+    def process_audio(self, audio, lang: str = "auto") -> str:
+        self.lang = lang
+        return "hello world"
+
+
+def test_router_never_forwards_auto_to_the_model(monkeypatch):
+    """An omitted language must reach the model as a concrete tag.
+
+    The router's own default was the literal "auto", which a plugin cannot
+    use. Both the router and ModelContainer.process_audio resolve it through
+    the same function so the two entry points cannot drift apart.
+    """
+    import ovos_stt_http_server as srv
+    from ovos_stt_http_server.routers.openai_whisper import make_openai_whisper_router
+
+    class FakeConfig(dict):
+        def get(self, key, default=None):
+            return {"lang": "pt-pt"}.get(key, default)
+
+    monkeypatch.setattr(srv, "Configuration", lambda: FakeConfig())
+
+    model = LangCapturingModel()
+    app = FastAPI()
+    app.include_router(make_openai_whisper_router(model))
+    resp = TestClient(app).post(
+        "/openai/v1/audio/transcriptions",
+        files={"file": ("a.wav", _wav_bytes(), "audio/wav")},
+        data={"model": "whisper-1"},
+    )
+
+    assert resp.status_code == 200
+    assert model.lang == "pt-pt"
