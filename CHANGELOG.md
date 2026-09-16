@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.27.1a1](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.27.1a1) (2026-09-16)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.27.0a1...0.27.1a1)
+
+**Merged pull requests:**
+
+- fix: /lang\_detect answers 501 when the plugin cannot detect language [\#109](https://github.com/OpenVoiceOS/ovos-stt-server/pull/109) ([openvoiceos-bot](https://github.com/openvoiceos-bot))
+
 ## [0.27.0a1](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.27.0a1) (2026-09-01)
 
 [Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.26.0a1...0.27.0a1)
