@@ -1,6 +1,0 @@
-ovos-plugin-manager>=0.7.0,<1.0.0
-fastapi~=0.95
-uvicorn~=0.22
-gradio~=3.28
-ovos-utils>=0.0.32,<1.0.0
-flask

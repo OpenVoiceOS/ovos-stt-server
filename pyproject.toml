@@ -1,0 +1,94 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ovos-stt-http-server"
+dynamic = ["version"]
+description = "simple fastapi server to host OpenVoiceOS stt plugins as a service"
+readme = "README.md"
+license = "Apache-2.0"
+authors = [{name = "JarbasAi", email = "jarbasai@mailfence.com"}]
+requires-python = ">=3.9"
+
+keywords = [
+    "plugin",
+    "STT",
+    "OVOS",
+    "OpenVoiceOS",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+]
+dependencies = [
+    "ovos-plugin-manager>=2.10.0a1,<3.0.0",
+    "fastapi~=0.95",
+    "uvicorn~=0.22",
+    "ovos-utils>=0.0.32,<1.0.0",
+    # FastAPI needs python-multipart at runtime to service the multipart/form-data
+    # routes (whisper-cpp inference, wit.ai); without it those routers fail to load.
+    "python-multipart",
+]
+
+[project.optional-dependencies]
+audio = ["pydub"]
+# Vendor SDKs are required (not optional) so the official-SDK end-to-end tests
+# under test/integration/*_sdk_live.py actually run in CI instead of being
+# silently skipped by pytest.importorskip.
+test = [
+    "pytest", "httpx", "pytest-cov", "requests", "uvicorn", "websockets",
+    "pydub",
+    # vendor client SDKs driven by the e2e tests
+    "openai", "deepgram-sdk", "assemblyai", "boto3", "google-cloud-speech",
+    "ibm-watson", "speechmatics-batch", "speechmatics-rt", "wit", "elevenlabs", "groq",
+    # SpeechRecognition-backed chromium SDK e2e test
+    "SpeechRecognition", "ovos-stt-plugin-chromium",
+    # self-hosted / streaming protocol clients
+    #
+    # amqtt needs both a floor and a ceiling. Below 0.11 it pins PyYAML<6.0,
+    # whose old sdist fails to build under modern setuptools/Cython
+    # ("AttributeError: 'build_ext' object has no attribute 'cython_sources'").
+    # Without the <1 cap, the unconstrained top-level "websockets" dep above can
+    # resolve to a version that conflicts with amqtt 0.11.x's exact
+    # websockets==15.0.1 pin, and the resolver silently backtracks all the way
+    # to the ancient, broken 0.10.0a1 prerelease (observed on Python 3.10),
+    # which does not even provide the amqtt module.
+    "grpcio", "protobuf", "grpcio-tools", "paho-mqtt", "amqtt>=0.11,<1",
+    # MCP server, exercised by the MCP/UTCP tests
+    "fastmcp>=3,<4",
+]
+# vosk-webrtc needs aiortc, which builds against system ffmpeg-7 dev headers and
+# has no wheels for the newest Python in the CI matrix. It is therefore kept out
+# of the required `test` extra; its e2e test skips when aiortc is absent (the
+# webrtc router is itself an optional, ImportError-gated feature of the server).
+test-webrtc = ["aiortc"]
+mcp = ["fastmcp>=3,<4"]
+
+[project.urls]
+Homepage = "https://github.com/OpenVoiceOS/ovos-stt-http-server"
+Repository = "https://github.com/OpenVoiceOS/ovos-stt-http-server"
+
+[project.scripts]
+ovos-stt-server = "ovos_stt_http_server.__main__:main"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+ovos_stt_http_server = ["audio/*"]
+
+[tool.setuptools.packages.find]
+include = ["ovos_stt_http_server*"]
+
+[tool.setuptools.dynamic]
+version = {attr = "ovos_stt_http_server.version.__version__"}
+
+[tool.coverage.run]
+source = ["ovos_stt_http_server"]
+omit = [
+    "*/routers/vosk_webrtc.py",
+    "test/*",
+    "*/proto/*_pb2.py",
+    "*/proto/*_pb2_grpc.py",
+]

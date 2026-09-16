@@ -13,44 +13,27 @@
 import argparse
 
 import uvicorn
-from ovos_config import Configuration
 from ovos_utils.log import LOG
 
 from ovos_stt_http_server import start_stt_server
-from ovos_stt_http_server.gradio_app import bind_gradio_service
 
 
 def main():
+    """Entry point for the OVOS STT HTTP server CLI."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--engine", help="stt plugin to be used", required=True)
     parser.add_argument("--lang-engine", help="audio language detection plugin to be used")
     parser.add_argument("--port", help="port number", default=8080)
     parser.add_argument("--host", help="host", default="0.0.0.0")
-    parser.add_argument("--lang", help="default language supported by plugin",
-                        default=Configuration().get("lang", "en-us"))
     parser.add_argument("--multi", help="Load a plugin instance per language (force lang support)",
                         action="store_true")
-    parser.add_argument("--gradio", help="Enable Gradio Web UI",
+    parser.add_argument("--mcp", help="mount MCP server at /mcp (requires ovos-stt-http-server[mcp])",
                         action="store_true")
-    parser.add_argument("--cache", help="Cache models for Gradio demo",
-                        action="store_true")
-    parser.add_argument("--title", help="Title for webUI",
-                        default="STT")
-    parser.add_argument("--description", help="Text description to print in UI",
-                        default="Get Speech-To-Text")
-    parser.add_argument("--info", help="Text to display at end of UI",
-                        default=None)
-    parser.add_argument("--badge", help="URL of visitor badge", default=None)
     args = parser.parse_args()
 
     server, engine = start_stt_server(args.engine, lang_engine=args.lang_engine,
-                                      multi=bool(args.multi),
-                                      has_gradio=bool(args.gradio))
+                                      multi=bool(args.multi), enable_mcp=bool(args.mcp))
     LOG.info("Server Started")
-    if args.gradio:
-        bind_gradio_service(server, engine, args.title, args.description,
-                            args.info, args.badge, args.lang, args.cache)
-        LOG.info("Gradio Started")
     uvicorn.run(server, host=args.host, port=int(args.port))
 
 
