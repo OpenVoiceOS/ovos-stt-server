@@ -169,6 +169,31 @@ def test_create_app_lang_detect_multi(load_stt, load_lang):
     assert r.json() == {"lang": "de", "conf": 0.77}
 
 
+class NoDetectSTT(FakeSTT):
+    """A plugin without language detection, e.g. ovos-stt-plugin-onnx-asr."""
+
+    def detect_language(self, audio, valid_langs=None):
+        raise NotImplementedError("OnnxASR does not support audio language detection")
+
+
+@patch("ovos_stt_http_server.load_stt_plugin")
+def test_create_app_lang_detect_plugin_without_detection(load_stt):
+    """/lang_detect on a plugin without detection must say so, not 500.
+
+    Regression: the unguarded call raised NotImplementedError (HTTP 500)
+    for plugins like ovos-stt-plugin-onnx-asr that do not implement
+    detect_language; the response now names the limitation with HTTP 501.
+    """
+    load_stt.return_value = NoDetectSTT
+    app, _model = srv.create_app("fake-stt")
+    client = TestClient(app)
+    r = client.post("/lang_detect", content=b"\x00\x00")
+    assert r.status_code == 501
+    detail = r.json()["detail"]
+    assert "does not support" in detail or "detection" in detail
+    detail.lower().index("detect")
+
+
 @patch("ovos_stt_http_server.load_stt_plugin")
 def test_create_app_lang_detect_no_valid_langs(load_stt):
     """/lang_detect without valid_langs must detect, not crash.

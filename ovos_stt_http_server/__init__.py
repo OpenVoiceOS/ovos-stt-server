@@ -11,7 +11,7 @@
 # limitations under the License.
 #
 from typing import List, Tuple, Optional, Set, Union
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 from ovos_config import Configuration
@@ -101,9 +101,24 @@ class ModelContainer(TransformerPipelines):
             self.engine.bind(self.lang_plugin)
 
     def detect_language(self, audio, valid_langs: Optional[Union[Set[str], List[str]]] = None) -> Tuple[str, float]:
-        if self.lang_plugin is None:
+        """Detect the spoken language.
+
+        Prefers the dedicated lang plugin when one is bound, else the plugin's
+        own detect_language. Raises NotImplementedError in a shape the caller
+        can turn into HTTP 501 when neither path exists; a plugin that inherits
+        the OPM stub without overriding it counts as not supported.
+        """
+        if self.lang_plugin is not None:
+            return self.lang_plugin.detect(audio, valid_langs)
+        if not hasattr(self.engine, "detect_language"):
+            raise NotImplementedError(f"{type(self.engine).__name__} does not support audio language detection")
+        # the OPM STT template stubs detect_language; an engine that did not
+        # override it cannot detect anything, so accept the plugin's own
+        # NotImplementedError wording as its answer rather than probing fakes
+        try:
             return self.engine.detect_language(audio, valid_langs)
-        return self.lang_plugin.detect(audio, valid_langs)
+        except NotImplementedError:
+            raise NotImplementedError(f"{type(self.engine).__name__} does not support audio language detection") from None
 
     def process_audio(self, audio: AudioData, lang: str = "auto"):
         audio, context = self.transform_audio(audio)
@@ -135,6 +150,8 @@ class MultiModelContainer(TransformerPipelines):
         self.config = config or {}
 
     def detect_language(self, audio, valid_langs: Optional[Union[Set[str], List[str]]] = None) -> Tuple[str, float]:
+        if self.lang_plugin is None:
+            raise NotImplementedError(f"{self.plugin_class.__name__} does not support audio language detection")
         return self.lang_plugin.detect(audio, valid_langs)
 
     def get_engine(self, lang: str):
@@ -245,7 +262,12 @@ def create_app(stt_plugin: str, lang_plugin: str = None, multi: bool = False,
         if valid and len(valid) == 1:
             return {"lang": valid[0], "conf": 1.0}
         audio_bytes = await request.body()
-        lang, prob = model.detect_language(audio_bytes, valid_langs=valid)
+        try:
+            lang, prob = model.detect_language(audio_bytes, valid_langs=valid)
+        except NotImplementedError as exc:
+            # the plugin cannot detect language at all; a 500 here reads as a
+            # server fault, 501 names the limitation
+            raise HTTPException(status_code=501, detail=str(exc)) from exc
         return {"lang": lang, "conf": prob}
 
     from ovos_stt_http_server.routers.chromium import make_chromium_router
