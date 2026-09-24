@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.27.3a1](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.27.3a1) (2026-09-24)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.27.2a1...0.27.3a1)
+
+**Merged pull requests:**
+
+- fix: stop forwarding literal "auto" language to STT plugins [\#108](https://github.com/OpenVoiceOS/ovos-stt-server/pull/108) ([JarbasAl](https://github.com/JarbasAl))
+
 ## [0.27.2a1](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.27.2a1) (2026-09-24)
 
 [Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.27.1a1...0.27.2a1)
@@ -120,15 +128,15 @@
 
 ## [0.1.5a3](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.5a3) (2025-12-18)
 
-[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a4...0.1.5a3)
-
-## [0.1.5a4](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.5a4) (2025-12-18)
-
-[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a5...0.1.5a4)
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a5...0.1.5a3)
 
 ## [0.1.5a5](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.5a5) (2025-12-18)
 
-[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a2...0.1.5a5)
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a4...0.1.5a5)
+
+## [0.1.5a4](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.5a4) (2025-12-18)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a2...0.1.5a4)
 
 **Merged pull requests:**
 
