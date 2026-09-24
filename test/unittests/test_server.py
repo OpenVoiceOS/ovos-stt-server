@@ -1,4 +1,5 @@
 """Tests for create_app / ModelContainer / MultiModelContainer."""
+from typing import ClassVar
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -8,6 +9,9 @@ import ovos_stt_http_server as srv
 
 
 class FakeSTT:
+    lang = "pt-pt"
+    available_languages: ClassVar[set] = {"en", "de", "pt-pt"}
+
     def __init__(self, config=None):
         self.config = config or {}
 
@@ -19,6 +23,11 @@ class FakeSTT:
 
     def bind(self, lang_plugin):
         self.bound = lang_plugin
+
+
+class FailingDetectSTT(FakeSTT):
+    def detect_language(self, audio, valid_langs=None):
+        raise RuntimeError("no language could be detected")
 
 
 class FakeLangDetector:
@@ -36,6 +45,40 @@ def test_model_container_basic(load_stt):
     assert mc.lang_plugin is None
     assert mc.process_audio(b"x", "en") == "transcribed:en"
     assert mc.detect_language(b"x") == ("en", 0.99)
+
+
+@patch("ovos_stt_http_server.load_stt_plugin")
+def test_model_container_process_audio_auto_detects_language(load_stt):
+    """process_audio must not forward the literal "auto" to the plugin.
+
+    Regression: with no audio transformer supplying ``stt_lang``, "auto" was
+    passed straight through as ``language="auto"`` to ``engine.execute``. STT
+    plugins do not understand "auto" (e.g. onnxasr maps it to a vocabulary
+    token the model does not have). A bound engine's own detection result
+    must reach execute(), per the STT plugin contract.
+    """
+    load_stt.return_value = FakeSTT
+    mc = srv.ModelContainer("fake")
+    assert mc.process_audio(b"x", "auto") == "transcribed:en"
+
+
+@patch("ovos_stt_http_server.load_stt_plugin")
+def test_model_container_process_audio_auto_falls_back_to_engine_lang_on_detect_failure(load_stt):
+    """When detection fails, the engine's own configured lang reaches execute(),
+    never the literal "auto"."""
+    load_stt.return_value = FailingDetectSTT
+    mc = srv.ModelContainer("fake")
+    assert mc.process_audio(b"x", "auto") == "transcribed:pt-pt"
+
+
+@patch("ovos_stt_http_server.load_stt_plugin")
+def test_model_container_process_audio_stt_lang_context_wins_over_detection(load_stt):
+    """A transform chain that supplies ``stt_lang`` decides the language
+    before any engine-side detection is attempted."""
+    load_stt.return_value = FakeSTT
+    mc = srv.ModelContainer("fake")
+    with patch.object(mc, "transform_audio", return_value=(b"x", {"stt_lang": "fr-fr"})):
+        assert mc.process_audio(b"x", "auto") == "transcribed:fr-fr"
 
 
 @patch("ovos_stt_http_server.load_stt_plugin")

@@ -28,6 +28,7 @@ from pydantic import BaseModel, Field
 from ovos_plugin_manager.utils.audio import AudioData
 
 
+
 # ---------------------------------------------------------------------------
 # Response schemas
 # ---------------------------------------------------------------------------

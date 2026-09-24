@@ -286,3 +286,55 @@ def test_translations_without_translator_returns_transcript():
     )
     assert resp.status_code == 200
     assert resp.json()["text"] == "hello world"
+
+
+class LangCapturingModel:
+    """Model stub that records the language the router handed it."""
+
+    def __init__(self):
+        self.lang = None
+
+    def process_audio(self, audio, lang: str = "auto") -> str:
+        self.lang = lang
+        return "hello world"
+
+
+def test_router_hands_auto_to_process_audio_for_detection(monkeypatch):
+    """An omitted language must reach process_audio as "auto", not resolved.
+
+    The router used to resolve "auto" to the server's configured language
+    itself, before ModelContainer.process_audio could detect it. That undid
+    process_audio's own fallback for every route that goes through this
+    router: a request with no language must let process_audio decide, since
+    only it knows about a bound language detector and the stt_lang context.
+    """
+    from ovos_stt_http_server.routers.openai_whisper import make_openai_whisper_router
+
+    model = LangCapturingModel()
+    app = FastAPI()
+    app.include_router(make_openai_whisper_router(model))
+    resp = TestClient(app).post(
+        "/openai/v1/audio/transcriptions",
+        files={"file": ("a.wav", _wav_bytes(), "audio/wav")},
+        data={"model": "whisper-1"},
+    )
+
+    assert resp.status_code == 200
+    assert model.lang == "auto"
+
+
+def test_router_forwards_explicit_language_unchanged():
+    """An explicit language must reach process_audio unchanged."""
+    from ovos_stt_http_server.routers.openai_whisper import make_openai_whisper_router
+
+    model = LangCapturingModel()
+    app = FastAPI()
+    app.include_router(make_openai_whisper_router(model))
+    resp = TestClient(app).post(
+        "/openai/v1/audio/transcriptions",
+        files={"file": ("a.wav", _wav_bytes(), "audio/wav")},
+        data={"model": "whisper-1", "language": "it"},
+    )
+
+    assert resp.status_code == 200
+    assert model.lang == "it"
