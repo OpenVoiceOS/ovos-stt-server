@@ -124,6 +124,12 @@ class ModelContainer(TransformerPipelines):
         audio, context = self.transform_audio(audio)
         if lang == "auto" and context.get("stt_lang"):
             lang = context["stt_lang"]
+        if lang == "auto":
+            try:
+                lang, _ = self.detect_language(audio, self.engine.available_languages)
+            except Exception as e:
+                LOG.debug(f"language detection failed, falling back to configured lang: {e}")
+                lang = self.engine.lang
         utterance = self.engine.execute(audio, language=lang) or ""
         return self.transform_utterance(utterance, lang)
 
