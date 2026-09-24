@@ -257,8 +257,6 @@ def create_app(stt_plugin: str, lang_plugin: str = None, multi: bool = False,
         sw = int(request.query_params.get("sample_width", 2))
         audio_bytes = await request.body()
         audio = AudioData(audio_bytes, sr, sw)
-        if lang == "auto":
-            lang, prob = model.detect_language(audio_bytes)
         return model.process_audio(audio, lang)
 
     @app.post("/lang_detect")

@@ -190,6 +190,24 @@ def test_create_app_stt_lang_auto(load_stt):
 
 
 @patch("ovos_stt_http_server.load_stt_plugin")
+def test_create_app_stt_lang_auto_no_detect_falls_back(load_stt):
+    """/stt?lang=auto on a plugin without detection must fall back, not 500.
+
+    Regression: the route resolved "auto" itself via ``model.detect_language``
+    before calling ``process_audio``, uncaught, so a plugin like
+    ovos-stt-plugin-onnx-asr that raises NotImplementedError from
+    detect_language crashed the request with HTTP 500 instead of falling
+    back to the engine's configured language.
+    """
+    load_stt.return_value = NoDetectSTT
+    app, _model = srv.create_app("fake-stt")
+    client = TestClient(app)
+    r = client.post("/stt?lang=auto", content=b"\x00\x00" * 100)
+    assert r.status_code == 200
+    assert r.text == f"transcribed:{NoDetectSTT.lang}"
+
+
+@patch("ovos_stt_http_server.load_stt_plugin")
 def test_create_app_lang_detect_single(load_stt):
     load_stt.return_value = FakeSTT
     app, _model = srv.create_app("fake-stt")
