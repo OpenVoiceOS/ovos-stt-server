@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.27.4a1](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.27.4a1) (2026-09-24)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.27.3a1...0.27.4a1)
+
+**Merged pull requests:**
+
+- fix: /stt hands lang=auto to process\_audio instead of detecting uncaught [\#114](https://github.com/OpenVoiceOS/ovos-stt-server/pull/114) ([openvoiceos-bot](https://github.com/openvoiceos-bot))
+
 ## [0.27.3a1](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.27.3a1) (2026-09-24)
 
 [Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.27.2a1...0.27.3a1)
@@ -120,11 +128,15 @@
 
 ## [0.1.5a7](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.5a7) (2025-12-19)
 
-[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a3...0.1.5a7)
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a4...0.1.5a7)
 
 **Merged pull requests:**
 
 - Update dependency ovos-plugin-manager to v2 [\#43](https://github.com/OpenVoiceOS/ovos-stt-server/pull/43) ([renovate[bot]](https://github.com/apps/renovate))
+
+## [0.1.5a4](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.5a4) (2025-12-18)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a3...0.1.5a4)
 
 ## [0.1.5a3](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.5a3) (2025-12-18)
 
@@ -132,11 +144,7 @@
 
 ## [0.1.5a5](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.5a5) (2025-12-18)
 
-[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a4...0.1.5a5)
-
-## [0.1.5a4](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.5a4) (2025-12-18)
-
-[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a2...0.1.5a4)
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a2...0.1.5a5)
 
 **Merged pull requests:**
 
