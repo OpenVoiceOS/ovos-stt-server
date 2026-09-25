@@ -217,12 +217,22 @@ class MultiModelContainer(TransformerPipelines):
 
         Returns:
             The utterance, and the language code the engine transcribed in.
-            This container has one engine per language and does no detection
-            of its own, so the language stays "auto" when nothing resolved it.
+            The language is never "auto": this container holds one engine per
+            language, so "auto" must resolve to a real one before it routes.
         """
         audio, context = self.transform_audio(audio)
         if lang == "auto" and context.get("stt_lang"):
             lang = context["stt_lang"]
+        if lang == "auto":
+            # "auto" is not a language. get_engine would load a plugin
+            # configured with lang="auto" and keep it in self.engines, so the
+            # audio went to an engine for a language that does not exist.
+            # Detect first, and route to that language's engine.
+            try:
+                lang, _ = self.detect_language(audio)
+            except Exception as e:
+                LOG.debug(f"language detection failed, falling back to configured lang: {e}")
+                lang = self.config.get("lang") or Configuration().get("lang", "en-us")
         engine = self.get_engine(lang)
         utterance = engine.execute(audio, language=lang) or ""
         return self.transform_utterance(utterance, lang), lang
