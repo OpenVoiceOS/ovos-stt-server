@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.27.6a1](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.27.6a1) (2026-09-26)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.27.5a2...0.27.6a1)
+
+**Merged pull requests:**
+
+- fix\(ci\): publish stable through the shared workflow, not setup.py [\#120](https://github.com/OpenVoiceOS/ovos-stt-server/pull/120) ([openvoiceos-bot](https://github.com/openvoiceos-bot))
+
 ## [0.27.5a2](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.27.5a2) (2026-09-26)
 
 [Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.27.5a1...0.27.5a2)
