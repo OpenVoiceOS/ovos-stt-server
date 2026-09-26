@@ -13,7 +13,7 @@
 from typing import List, Tuple, Optional, Set, Union
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from ovos_config import Configuration
 from ovos_plugin_manager.audio_transformers import load_audio_transformer_plugin, AudioLanguageDetector
 from ovos_plugin_manager.stt import load_stt_plugin
@@ -144,11 +144,42 @@ class ModelContainer(TransformerPipelines):
             except Exception as e:
                 LOG.debug(f"language detection failed, falling back to configured lang: {e}")
                 lang = self.engine.lang
+        if lang == "auto":
+            # a detector that answers "auto" resolved nothing
+            lang = self.engine.lang
+        lang = _reject_unresolved_lang(lang)
         utterance = self.engine.execute(audio, language=lang) or ""
         return self.transform_utterance(utterance, lang), lang
 
     def process_audio(self, audio: AudioData, lang: str = "auto"):
         return self.transcribe(audio, lang)[0]
+
+
+class UnresolvedLanguage(ValueError):
+    """No language could be resolved for a request.
+
+    A dedicated class, because the handler that answers 400 must not catch
+    every ValueError. A plugin that raises ValueError for a fault of its own,
+    and a bad query parameter, are not bad-language requests: they must keep
+    answering 500 rather than telling the caller its request was wrong and
+    leaking an internal message.
+    """
+
+
+def _reject_unresolved_lang(lang: Optional[str]) -> str:
+    """Return a concrete language code, or raise.
+
+    An STT plugin reads the language as a vocabulary token. The onnx-asr
+    plugin builds `<|auto|>`, which the NeMo vocabulary does not hold, and
+    answers `KeyError: '<|auto|>'`. So an unresolved language must stop here,
+    with a message that names the cause, and never reach an engine.
+    """
+    if lang and lang != "auto":
+        return lang
+    raise UnresolvedLanguage(
+        "no language was resolved for this audio: language detection is not "
+        "available or answered 'auto', and no language is configured. Send an "
+        "explicit language, or configure one for the plugin.")
 
 
 class MultiModelContainer(TransformerPipelines):
@@ -223,6 +254,16 @@ class MultiModelContainer(TransformerPipelines):
         audio, context = self.transform_audio(audio)
         if lang == "auto" and context.get("stt_lang"):
             lang = context["stt_lang"]
+        if lang == "auto":
+            try:
+                lang, _ = self.detect_language(audio)
+            except Exception as e:
+                LOG.debug(f"language detection failed, falling back to configured lang: {e}")
+                lang = self.config.get("lang") or "auto"
+        if lang == "auto":
+            # a detector that answers "auto" resolved nothing
+            lang = self.config.get("lang") or "auto"
+        lang = _reject_unresolved_lang(lang)
         engine = self.get_engine(lang)
         utterance = engine.execute(audio, language=lang) or ""
         return self.transform_utterance(utterance, lang), lang
@@ -263,6 +304,16 @@ def create_app(stt_plugin: str, lang_plugin: str = None, multi: bool = False,
         model = MultiModelContainer(stt_plugin, lang_plugin)
     else:
         model = ModelContainer(stt_plugin, lang_plugin)
+
+    @app.exception_handler(UnresolvedLanguage)
+    async def unresolved_language(request: Request, exc: UnresolvedLanguage):
+        """Answer 400 when the request carries no language the engine can use.
+
+        Every vendor-compat router treats the language as optional, because
+        the API it imitates does. A request that resolves no language is a
+        request the server cannot answer, which is 400, not 500.
+        """
+        return JSONResponse(status_code=400, content={"error": str(exc)})
 
     @app.get("/status")
     def stats(request: Request):
