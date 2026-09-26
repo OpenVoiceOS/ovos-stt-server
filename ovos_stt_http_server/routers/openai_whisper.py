@@ -157,7 +157,14 @@ def make_openai_whisper_router(model, translator=None) -> APIRouter:
         lang = language or "auto"
 
         start = time.time()
-        transcript = model.process_audio(audio, lang) or ""
+        # transcribe() reports the language the engine answered in, so a
+        # request that asked for "auto" no longer leaves lang unresolved: the
+        # translation below needs the real source, and verbose_json reports it.
+        if hasattr(model, "transcribe"):
+            transcript, lang = model.transcribe(audio, lang)
+            transcript = transcript or ""
+        else:  # a model object that predates transcribe()
+            transcript = model.process_audio(audio, lang) or ""
         # OpenAI /audio/translations always returns English: transcribe in the
         # source language, then translate the text to English (extra step after
         # ASR) using the configured OVOS translate plugin.

@@ -120,7 +120,21 @@ class ModelContainer(TransformerPipelines):
         except NotImplementedError:
             raise NotImplementedError(f"{type(self.engine).__name__} does not support audio language detection") from None
 
-    def process_audio(self, audio: AudioData, lang: str = "auto"):
+    def transcribe(self, audio: AudioData, lang: str = "auto") -> Tuple[str, str]:
+        """Transcribe audio and report the language the transcription used.
+
+        `process_audio` returns the utterance alone, so a caller that passed
+        "auto" could not tell which language the engine answered in. A router
+        that reports the language, or translates from it, needs that answer.
+
+        Args:
+            audio: the audio to transcribe.
+            lang: a language code, or "auto" to resolve one.
+
+        Returns:
+            The utterance, and the language code the engine transcribed in.
+            The language is never "auto".
+        """
         audio, context = self.transform_audio(audio)
         if lang == "auto" and context.get("stt_lang"):
             lang = context["stt_lang"]
@@ -131,7 +145,10 @@ class ModelContainer(TransformerPipelines):
                 LOG.debug(f"language detection failed, falling back to configured lang: {e}")
                 lang = self.engine.lang
         utterance = self.engine.execute(audio, language=lang) or ""
-        return self.transform_utterance(utterance, lang)
+        return self.transform_utterance(utterance, lang), lang
+
+    def process_audio(self, audio: AudioData, lang: str = "auto"):
+        return self.transcribe(audio, lang)[0]
 
 
 class MultiModelContainer(TransformerPipelines):
@@ -188,12 +205,27 @@ class MultiModelContainer(TransformerPipelines):
         Returns:
             str: Transcribed text for the audio, or an empty string if no transcription is produced.
         """
+        return self.transcribe(audio, lang)[0]
+
+    def transcribe(self, audio: AudioData, lang: str) -> Tuple[str, str]:
+        """Transcribe audio and report the language the transcription used.
+
+        Args:
+            audio: the audio to transcribe.
+            lang: a language code, or "auto" to take the one the audio
+                transformers reported.
+
+        Returns:
+            The utterance, and the language code the engine transcribed in.
+            This container has one engine per language and does no detection
+            of its own, so the language stays "auto" when nothing resolved it.
+        """
         audio, context = self.transform_audio(audio)
         if lang == "auto" and context.get("stt_lang"):
             lang = context["stt_lang"]
         engine = self.get_engine(lang)
         utterance = engine.execute(audio, language=lang) or ""
-        return self.transform_utterance(utterance, lang)
+        return self.transform_utterance(utterance, lang), lang
 
 
 def create_app(stt_plugin: str, lang_plugin: str = None, multi: bool = False,
