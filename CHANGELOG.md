@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.27.5a1](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.27.5a1) (2026-09-26)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.27.4a1...0.27.5a1)
+
+**Merged pull requests:**
+
+- fix\(openai\): answer with the language the engine transcribed in [\#116](https://github.com/OpenVoiceOS/ovos-stt-server/pull/116) ([openvoiceos-bot](https://github.com/openvoiceos-bot))
+
 ## [0.27.4a1](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.27.4a1) (2026-09-24)
 
 [Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.27.3a1...0.27.4a1)
