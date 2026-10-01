@@ -212,17 +212,51 @@ class MultiModelContainer(TransformerPipelines):
 
         Args:
             audio: the audio to transcribe.
-            lang: a language code, or "auto" to take the one the audio
-                transformers reported.
+            lang: a language code, or "auto" to resolve one - from what the
+                audio transformers reported, else by detecting it.
 
         Returns:
             The utterance, and the language code the engine transcribed in.
-            This container has one engine per language and does no detection
-            of its own, so the language stays "auto" when nothing resolved it.
+            Never "auto": this container holds one model per language, so a
+            language is resolved before any engine is chosen.
+
+        Raises:
+            ValueError: "auto" was asked for, detection did not resolve a
+                language, and no usable configured language is left to fall
+                back to.
         """
         audio, context = self.transform_audio(audio)
         if lang == "auto" and context.get("stt_lang"):
+            # an audio transformer already resolved it; cheaper than detecting
             lang = context["stt_lang"]
+        if lang == "auto":
+            # "auto" is not a language, so it cannot name a model. Detect
+            # first and route to that language's engine; passing "auto" on
+            # builds an engine configured for the language "auto" and caches
+            # it under that key, which is a model of nothing.
+            try:
+                # no valid_langs: this container loads lazily, so the
+                # languages it COULD serve are not the ones already loaded,
+                # and constraining to loaded engines would rule out the first
+                # request for every other language.
+                lang, prob = self.detect_language(audio)
+                LOG.info(f"detected language: {lang} (confidence {prob})")
+            except Exception as e:
+                # mirrors ModelContainer: prefer a configured language over
+                # failing the request, but this container has no engine yet to
+                # read a language off, so the config is the only fallback.
+                fallback = self.config.get("lang")
+                if not fallback or str(fallback).strip().lower() == "auto":
+                    raise ValueError(
+                        "lang='auto' could not be resolved: this container "
+                        "loads one model per language, so it cannot pick one "
+                        "without a detected or configured language. Start the "
+                        "server with a language detector plugin, set a "
+                        "language in the plugin config, or ask for an "
+                        f"explicit language. Detection failed with: {e}") from e
+                LOG.debug(f"language detection failed, falling back to "
+                          f"configured lang: {e}")
+                lang = fallback
         engine = self.get_engine(lang)
         utterance = engine.execute(audio, language=lang) or ""
         return self.transform_utterance(utterance, lang), lang

@@ -149,6 +149,91 @@ def test_multi_model_lang_detect(load_stt, load_lang):
 
 @patch("ovos_stt_http_server.load_audio_transformer_plugin")
 @patch("ovos_stt_http_server.load_stt_plugin")
+def test_multi_model_auto_detects_then_routes(load_stt, load_lang):
+    """lang="auto" must resolve a language, never load an engine for "auto".
+
+    This container holds one model per language, so "auto" names no model.
+    Passing it through builds a plugin configured for the language "auto" and
+    caches it under that key - a model of nothing - and the detector that was
+    configured is never asked.
+    """
+    load_stt.return_value = FakeSTT
+    with patch("ovos_stt_http_server.AudioLanguageDetector", FakeLangDetector):
+        load_lang.return_value = FakeLangDetector
+        mm = srv.MultiModelContainer("fake", lang_plugin="lp")
+
+    text, lang = mm.transcribe(b"x", "auto")
+
+    assert lang == "de", "the detected language must be reported back"
+    assert text == "transcribed:de", "the engine must transcribe in it"
+    assert "de" in mm.engines, "the engine for the DETECTED language is loaded"
+    assert "auto" not in mm.engines, (
+        "an engine was loaded for the language 'auto'; engines=%r" % (
+            list(mm.engines),))
+    assert mm.engines["de"].config["lang"] == "de"
+
+
+@patch("ovos_stt_http_server.load_audio_transformer_plugin")
+@patch("ovos_stt_http_server.load_stt_plugin")
+def test_multi_model_auto_prefers_a_transformer_resolved_lang(load_stt, load_lang):
+    """A language an audio transformer already resolved wins over detecting."""
+    load_stt.return_value = FakeSTT
+    with patch("ovos_stt_http_server.AudioLanguageDetector", FakeLangDetector):
+        load_lang.return_value = FakeLangDetector
+        mm = srv.MultiModelContainer("fake", lang_plugin="lp")
+    mm.transform_audio = lambda audio: (audio, {"stt_lang": "pt-pt"})
+
+    text, lang = mm.transcribe(b"x", "auto")
+
+    assert (lang, text) == ("pt-pt", "transcribed:pt-pt")
+    assert "auto" not in mm.engines
+
+
+@patch("ovos_stt_http_server.load_stt_plugin")
+def test_multi_model_auto_without_a_detector_falls_back_to_configured_lang(load_stt):
+    """No detector, but the plugin config names a language: use it.
+
+    Mirrors ModelContainer, which prefers a configured language over failing
+    the request. This container has no engine yet to read a language off, so
+    the config is the only fallback there is.
+    """
+    load_stt.return_value = FakeSTT
+    mm = srv.MultiModelContainer("fake", config={"lang": "en"})
+
+    text, lang = mm.transcribe(b"x", "auto")
+
+    assert (lang, text) == ("en", "transcribed:en")
+    assert "auto" not in mm.engines
+
+
+@patch("ovos_stt_http_server.load_stt_plugin")
+def test_multi_model_auto_with_nothing_to_resolve_it_raises(load_stt):
+    """No detector and no configured language: refuse, do not guess.
+
+    Transcribing with whichever model happens to answer returns confident
+    nonsense, and loading one for "auto" fails further from the cause.
+    """
+    load_stt.return_value = FakeSTT
+    mm = srv.MultiModelContainer("fake", config={})
+
+    with pytest.raises(ValueError, match="lang='auto' could not be resolved"):
+        mm.transcribe(b"x", "auto")
+    assert mm.engines == {}, "nothing may be loaded for an unresolved language"
+
+
+@patch("ovos_stt_http_server.load_stt_plugin")
+def test_multi_model_auto_config_lang_of_auto_is_not_a_fallback(load_stt):
+    """A configured lang of "auto" resolves nothing, so it is not a fallback."""
+    load_stt.return_value = FakeSTT
+    mm = srv.MultiModelContainer("fake", config={"lang": "auto"})
+
+    with pytest.raises(ValueError, match="lang='auto' could not be resolved"):
+        mm.transcribe(b"x", "auto")
+    assert mm.engines == {}
+
+
+@patch("ovos_stt_http_server.load_audio_transformer_plugin")
+@patch("ovos_stt_http_server.load_stt_plugin")
 def test_multi_model_lang_plugin_load_failure(load_stt, load_lang):
     load_stt.return_value = FakeSTT
     load_lang.return_value = None
