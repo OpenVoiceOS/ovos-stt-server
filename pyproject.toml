@@ -56,14 +56,14 @@ test = [
     # which does not even provide the amqtt module.
     "grpcio", "protobuf", "grpcio-tools", "paho-mqtt", "amqtt>=0.11,<1",
     # MCP server, exercised by the MCP/UTCP tests
-    "fastmcp>=3,<4",
+    "fastmcp>=4,<5",
 ]
 # vosk-webrtc needs aiortc, which builds against system ffmpeg-7 dev headers and
 # has no wheels for the newest Python in the CI matrix. It is therefore kept out
 # of the required `test` extra; its e2e test skips when aiortc is absent (the
 # webrtc router is itself an optional, ImportError-gated feature of the server).
 test-webrtc = ["aiortc"]
-mcp = ["fastmcp>=3,<4"]
+mcp = ["fastmcp>=4,<5"]
 
 [project.urls]
 Homepage = "https://github.com/OpenVoiceOS/ovos-stt-http-server"
