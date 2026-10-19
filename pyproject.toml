@@ -23,9 +23,9 @@ classifiers = [
 ]
 dependencies = [
     "ovos-plugin-manager>=2.10.0a1,<3.0.0",
-    "fastapi~=0.95",
-    "uvicorn~=0.22",
-    "ovos-utils>=0.0.32,<1.0.0",
+    "fastapi>=0.115",
+    "uvicorn>=0.34",
+    "ovos-utils>=0.0.32",
     # FastAPI needs python-multipart at runtime to service the multipart/form-data
     # routes (whisper-cpp inference, wit.ai); without it those routers fail to load.
     "python-multipart",
@@ -61,17 +61,15 @@ test = [
     # to the ancient, broken 0.10.0a1 prerelease (observed on Python 3.10),
     # which does not even provide the amqtt module.
     "grpcio", "protobuf", "grpcio-tools", "paho-mqtt", "amqtt>=0.11,<1",
-    # MCP server, exercised by the MCP/UTCP tests
-    "fastmcp>=3,<4",
-    # reference UTCP client, drives /utcp end to end
-    "utcp>=1.2", "utcp-http>=1.1",
+    # MCP server and the reference MCP and UTCP clients for the MCP/UTCP tests
+    "fastmcp>=4.1.1", "mcp>=2.3.0", "utcp>=1.2.0", "utcp-http>=1.1.14",
 ]
 # vosk-webrtc needs aiortc, which builds against system ffmpeg-7 dev headers and
 # has no wheels for the newest Python in the CI matrix. It is therefore kept out
 # of the required `test` extra; its e2e test skips when aiortc is absent (the
 # webrtc router is itself an optional, ImportError-gated feature of the server).
 test-webrtc = ["aiortc"]
-mcp = ["fastmcp>=3,<4"]
+mcp = ["fastmcp>=4.1.1"]
 
 [project.urls]
 Homepage = "https://github.com/OpenVoiceOS/ovos-stt-http-server"
