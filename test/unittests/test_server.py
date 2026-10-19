@@ -128,6 +128,25 @@ def test_multi_model_container_lazy_loads(load_stt):
 
 
 @patch("ovos_stt_http_server.load_stt_plugin")
+def test_multi_model_request_does_not_change_the_configured_lang(load_stt):
+    """A request for one language must not rewrite the server's language.
+
+    Each engine gets its own copy of the config. Sharing one dict made the
+    configured language the last language any client asked for, and gave
+    every loaded engine that language too.
+    """
+    load_stt.return_value = FakeSTT
+    mm = srv.MultiModelContainer("fake", config={"lang": "en-us", "model": "small"})
+
+    mm.process_audio(b"x", "pt-pt")
+    mm.process_audio(b"x", "de")
+
+    assert mm.config == {"lang": "en-us", "model": "small"}
+    assert mm.engines["pt-pt"].config == {"lang": "pt-pt", "model": "small"}
+    assert mm.engines["de"].config == {"lang": "de", "model": "small"}
+
+
+@patch("ovos_stt_http_server.load_stt_plugin")
 def test_multi_model_container_load_failure(load_stt):
     load_stt.return_value = None
     with pytest.raises(ValueError, match="Failed to load STT"):
