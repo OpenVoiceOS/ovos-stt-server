@@ -228,3 +228,66 @@ class TestMcpE2E:
             for c in result.content
         ]
         assert any(texts), "Expected non-empty response from transcribe tool"
+
+
+# ---------------------------------------------------------------------------
+# UTCP end-to-end through the reference client (python-utcp)
+# ---------------------------------------------------------------------------
+
+_PCM = bytes(range(256)) * 25
+
+
+@pytest.fixture(scope="module")
+def recording_stub():
+    return _make_stub_model()
+
+
+@pytest.fixture(scope="module")
+def utcp_server(recording_stub):
+    from unittest.mock import patch
+
+    with patch("ovos_stt_http_server.ModelContainer", return_value=recording_stub):
+        from ovos_stt_http_server import create_app
+        app, _ = create_app("stub-stt")
+    base_url, server, thread = _start_server(app)
+    yield base_url
+    server.should_exit = True
+    thread.join(timeout=5)
+
+
+def _utcp_session(base_url, calls):
+    from utcp.data.utcp_client_config import UtcpClientConfig
+    from utcp.utcp_client import UtcpClient
+
+    async def main():
+        config = UtcpClientConfig(manual_call_templates=[{
+            "name": "ovos_stt",
+            "call_template_type": "http",
+            "http_method": "GET",
+            "url": f"{base_url}/utcp",
+        }])
+        client = await UtcpClient.create(config=config)
+        names = sorted(t.name for t in await client.search_tools("", limit=50))
+        results = [await client.call_tool(name, args) for name, args in calls]
+        return names, results
+    return asyncio.run(main())
+
+
+class TestUtcpClientE2E:
+    def test_client_registers_every_tool(self, utcp_server):
+        names, _ = _utcp_session(utcp_server, [])
+        assert names == ["ovos_stt.lang_detect", "ovos_stt.status", "ovos_stt.stt"]
+
+    def test_client_calls_every_tool(self, utcp_server, recording_stub):
+        _, (status, text, detected) = _utcp_session(utcp_server, [
+            ("ovos_stt.status", {}),
+            ("ovos_stt.stt", {"body": _PCM, "lang": "en-us", "sample_rate": 16000}),
+            ("ovos_stt.lang_detect", {"body": _PCM, "valid_langs": "en-us,pt-pt"}),
+        ])
+        assert status == {"status": "ok", "plugin": "stub-stt", "lang_plugin": None}
+        assert text == "hello from stub"
+        assert detected == {"lang": "en-us", "conf": 0.95}
+        audio, lang = recording_stub.process_audio.call_args.args
+        assert (audio.frame_data, audio.sample_rate, lang) == (_PCM, 16000, "en-us")
+        assert recording_stub.detect_language.call_args.args[0] == _PCM
+        assert recording_stub.detect_language.call_args.kwargs == {"valid_langs": ["en-us", "pt-pt"]}
