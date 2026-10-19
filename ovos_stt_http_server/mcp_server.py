@@ -24,11 +24,14 @@ from __future__ import annotations
 import base64
 import io
 import tempfile
+import wave
+from array import array
 from typing import TYPE_CHECKING, Optional
 
 from ovos_utils.log import LOG
 
 if TYPE_CHECKING:
+    from ovos_plugin_manager.utils.audio import AudioData
     from ovos_stt_http_server import ModelContainer, MultiModelContainer
 
 _MCP_AVAILABLE = False
@@ -45,6 +48,53 @@ def _require_mcp() -> None:
             "FastMCP is not installed. "
             "Enable the extra: pip install 'ovos-stt-http-server[mcp]'"
         )
+
+
+_WAVE_FORMAT_PCM = (1).to_bytes(2, "little")
+_WAVE_FORMAT_EXTENSIBLE = (0xFFFE).to_bytes(2, "little")
+_KSDATAFORMAT_SUBTYPE_PCM = bytes.fromhex("0100000000001000800000aa00389b71")
+
+
+def _as_plain_pcm_wav(data: bytes) -> bytes:
+    """Give a WAVE_FORMAT_EXTENSIBLE file with a PCM subformat the plain PCM tag.
+
+    ffmpeg and sox write the extensible tag for 24-bit, 32-bit and
+    multi-channel PCM, and ``wave`` before Python 3.12 rejects it.
+    """
+    pos = 12
+    while pos + 8 <= len(data):
+        chunk_id, size = data[pos:pos + 4], int.from_bytes(data[pos + 4:pos + 8], "little")
+        if chunk_id == b"fmt ":
+            tag = data[pos + 8:pos + 10]
+            subformat = data[pos + 32:pos + 48]
+            if tag == _WAVE_FORMAT_EXTENSIBLE and subformat == _KSDATAFORMAT_SUBTYPE_PCM:
+                return data[:pos + 8] + _WAVE_FORMAT_PCM + data[pos + 10:]
+            return data
+        pos += 8 + size + (size & 1)
+    return data
+
+
+def _to_audio_data(data: bytes, sample_rate: int, sample_width: int) -> "AudioData":
+    """Decode a WAV file to 16-bit mono PCM; read other bytes as raw PCM.
+
+    The channels of a multi-channel WAV are averaged, so equal loud channels
+    do not clip as a plain sum would.
+    """
+    from ovos_plugin_manager.utils.audio import AudioData
+
+    if data[:4] != b"RIFF":
+        return AudioData(data, sample_rate, sample_width)
+
+    with wave.open(io.BytesIO(_as_plain_pcm_wav(data))) as wf:
+        channels, width, rate = wf.getnchannels(), wf.getsampwidth(), wf.getframerate()
+        frames = wf.readframes(wf.getnframes())
+    # AudioData reads 8-bit samples as unsigned, as WAV stores them. Width
+    # conversion works sample by sample, so it is safe on interleaved frames.
+    pcm = array("h", AudioData(frames, rate, width).get_raw_data(convert_width=2))
+    if channels > 1:
+        pcm = array("h", (sum(frame) // channels
+                          for frame in zip(*(pcm[c::channels] for c in range(channels)))))
+    return AudioData(pcm.tobytes(), rate, 2)
 
 
 def build_mcp_server(
@@ -71,7 +121,6 @@ def build_mcp_server(
     """
     _require_mcp()
     from fastmcp import FastMCP  # type: ignore
-    from ovos_plugin_manager.utils.audio import AudioData
 
     mcp = FastMCP(server_name)
 
@@ -85,16 +134,18 @@ def build_mcp_server(
     ) -> str:
         """Transcribe speech audio to text.
 
-        Provide **one** of ``audio_b64`` (base64-encoded raw PCM bytes) or
-        ``audio_path`` (absolute path to an audio file on the server).
+        Provide **one** of ``audio_b64`` (base64-encoded audio) or
+        ``audio_path`` (absolute path to an audio file on the server). A WAV file
+        is decoded with its own sample rate and width; any other bytes are
+        read as raw mono PCM.
 
         Args:
-            audio_b64: Base64-encoded raw PCM audio bytes.
-            audio_path: Absolute path to a WAV/PCM audio file accessible by the server.
+            audio_b64: Base64-encoded WAV file or raw PCM bytes.
+            audio_path: Absolute path to a WAV or raw PCM file on the server.
             lang: BCP-47 language tag (e.g. ``"en-us"``) or ``"auto"`` for
                 automatic language detection.
-            sample_rate: Sample rate of the audio in Hz (default 16 000).
-            sample_width: Sample width in bytes (default 2 = 16-bit).
+            sample_rate: Sample rate of raw PCM in Hz (default 16 000).
+            sample_width: Sample width of raw PCM in bytes (default 2 = 16-bit).
 
         Returns:
             The transcribed text, or an empty string if nothing was heard.
@@ -112,11 +163,11 @@ def build_mcp_server(
             assert audio_b64 is not None  # guarded by the ValueError above
             raw_bytes = base64.b64decode(audio_b64)
 
-        audio = AudioData(raw_bytes, sample_rate, sample_width)
+        audio = _to_audio_data(raw_bytes, sample_rate, sample_width)
 
         if lang == "auto":
             try:
-                detected_lang, _conf = model.detect_language(raw_bytes)
+                detected_lang, _conf = model.detect_language(audio.frame_data)
                 lang = detected_lang
             except Exception as e:
                 # engines without audio language detection fall back to
