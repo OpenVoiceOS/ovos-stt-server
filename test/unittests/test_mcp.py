@@ -133,13 +133,6 @@ class TestTranscribeTool:
         text = self._call(model, audio_path=str(audio_file), lang="en-us")
         assert "path transcription" in text
 
-    def test_transcribe_auto_lang_calls_detect_language(self):
-        model = _make_model("auto result", detected_lang="pt-pt")
-        raw = b"\x00" * 50
-        audio_b64 = base64.b64encode(raw).decode()
-        self._call(model, audio_b64=audio_b64, lang="auto")
-        model.detect_language.assert_called_once()
-
     def test_transcribe_explicit_lang_skips_detection(self):
         model = _make_model("explicit lang result")
         raw = b"\x00" * 50
@@ -209,34 +202,6 @@ class TestTranscribeTool:
                 "lang": "en-us",
             }))
 
-    def test_transcribe_detect_language_failure_falls_back(self):
-        """Engines without language detection fall back to the default lang."""
-        from ovos_stt_http_server.mcp_server import build_mcp_server
-        model = _make_model("fallback text")
-        model.detect_language.side_effect = RuntimeError("not supported")
-        model.default_lang = "pt-pt"
-        mcp = build_mcp_server(model)
-        raw = b"\x00" * 50
-        audio_b64 = base64.b64encode(raw).decode()
-        asyncio.run(mcp.call_tool("transcribe", {
-            "audio_b64": audio_b64,
-            "lang": "auto",
-        }))
-        lang_used = model.process_audio.call_args[0][1]
-        assert lang_used == "pt-pt"
-
-    def test_transcribe_returns_detected_lang_text(self):
-        """When lang=auto, process_audio is called with the detected language."""
-        model = _make_model("olá mundo", detected_lang="pt-pt")
-        raw = b"\x00" * 50
-        audio_b64 = base64.b64encode(raw).decode()
-        text = self._call(model, audio_b64=audio_b64, lang="auto")
-        assert "olá mundo" in text
-        # Verify process_audio was called with the detected lang
-        call_args = model.process_audio.call_args
-        assert call_args[1].get("lang") == "pt-pt" or (
-            len(call_args[0]) > 1 and call_args[0][1] == "pt-pt"
-        )
 
 
 # ---------------------------------------------------------------------------
@@ -489,3 +454,55 @@ class TestTranscribeAudioFiles:
         received = self._received(audio_b64=base64.b64encode(self.MONO).decode(),
                                   sample_rate=8000, sample_width=2)
         assert received == (self.MONO, 8000, 2)
+
+
+class TestTranscribeAutoLanguage:
+    """lang="auto" resolves the same way over MCP as over HTTP /stt."""
+
+    @pytest.fixture(autouse=True)
+    def _check_mcp(self):
+        import fastmcp
+
+    @pytest.fixture
+    def container(self, monkeypatch):
+        import ovos_stt_http_server as srv
+
+        class PortugueseEngine:
+            """An engine configured for pt-pt, with no language detection."""
+            lang = "pt-pt"
+            available_languages = {"pt-pt"}
+
+            def __init__(self, config=None):
+                pass
+
+            def execute(self, audio, language=None):
+                return f"transcribed:{language}"
+
+        monkeypatch.setattr(srv, "load_stt_plugin", lambda plugin: PortugueseEngine)
+        return srv.ModelContainer("fake-plugin")
+
+    def _mcp(self, container, **kwargs):
+        from ovos_stt_http_server.mcp_server import build_mcp_server
+        audio_b64 = base64.b64encode(b"\x00" * 320).decode()
+        result = asyncio.run(build_mcp_server(container).call_tool(
+            "transcribe", {"audio_b64": audio_b64, **kwargs}))
+        return _extract_text(result.content)
+
+    def test_auto_without_detection_uses_the_engine_language(self, container):
+        assert self._mcp(container, lang="auto") == "transcribed:pt-pt"
+
+    def test_auto_uses_the_detected_language(self, container, monkeypatch):
+        monkeypatch.setattr(container, "detect_language", lambda audio, valid=None: ("fr-fr", 0.9))
+        assert self._mcp(container, lang="auto") == "transcribed:fr-fr"
+
+    def test_omitted_lang_uses_the_engine_language(self, container):
+        assert self._mcp(container) == "transcribed:pt-pt"
+
+    def test_mcp_matches_http(self, container):
+        from fastapi.testclient import TestClient
+        from unittest.mock import patch
+        with patch("ovos_stt_http_server.ModelContainer", return_value=container):
+            from ovos_stt_http_server import create_app
+            app, _ = create_app("fake-plugin")
+        http = TestClient(app).post("/stt?lang=auto", content=b"\x00" * 320).text
+        assert self._mcp(container, lang="auto") == http == "transcribed:pt-pt"
