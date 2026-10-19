@@ -67,25 +67,18 @@ def _stt_tool(base_url: str) -> Dict[str, Any]:
             "required": ["body"],
         },
         "outputs": {
-            "type": "object",
-            "properties": {
-                "text": {"type": "string", "description": "Transcribed text."},
-            },
+            "type": "string",
+            "description": "Transcribed text (text/plain).",
         },
         "tags": ["stt", "speech-to-text", "ovos"],
         "average_response_size": 256,
         "tool_call_template": {
-            "protocol": "http",
-            "method": "POST",
+            "name": "ovos_stt",
+            "call_template_type": "http",
+            "http_method": "POST",
             "url": f"{base_url}/stt",
-            "query_params": {
-                "lang": "{{lang}}",
-                "sample_rate": "{{sample_rate}}",
-                "sample_width": "{{sample_width}}",
-            },
-            "headers": {"Content-Type": "application/octet-stream"},
-            "body": "{{body}}",
-            "auth": {"type": "none"},
+            "content_type": "application/octet-stream",
+            "body_field": "body",
         },
     }
 
@@ -108,10 +101,10 @@ def _lang_detect_tool(base_url: str) -> Dict[str, Any]:
                 },
                 "valid_langs": {
                     "type": "string",
-                    "description": "Comma-separated list of candidate language tags.",
+                    "description": "Comma-separated list of candidate language tags (optional).",
                 },
             },
-            "required": ["body", "valid_langs"],
+            "required": ["body"],
         },
         "outputs": {
             "type": "object",
@@ -123,13 +116,12 @@ def _lang_detect_tool(base_url: str) -> Dict[str, Any]:
         "tags": ["language-detection", "ovos"],
         "average_response_size": 64,
         "tool_call_template": {
-            "protocol": "http",
-            "method": "POST",
+            "name": "ovos_stt",
+            "call_template_type": "http",
+            "http_method": "POST",
             "url": f"{base_url}/lang_detect",
-            "query_params": {"valid_langs": "{{valid_langs}}"},
-            "headers": {"Content-Type": "application/octet-stream"},
-            "body": "{{body}}",
-            "auth": {"type": "none"},
+            "content_type": "application/octet-stream",
+            "body_field": "body",
         },
     }
 
@@ -157,10 +149,10 @@ def _status_tool(base_url: str) -> Dict[str, Any]:
         "tags": ["status", "ovos"],
         "average_response_size": 128,
         "tool_call_template": {
-            "protocol": "http",
-            "method": "GET",
+            "name": "ovos_stt",
+            "call_template_type": "http",
+            "http_method": "GET",
             "url": f"{base_url}/status",
-            "auth": {"type": "none"},
         },
     }
 
@@ -203,12 +195,13 @@ def make_utcp_router() -> APIRouter:
     def utcp_manual(request: Request):
         """Return a UTCP-1.0 manual describing every endpoint on this server.
 
-        UTCP clients point their provider config at this URL:
+        UTCP clients register this URL as a manual call template:
 
         ```json
         {
-          "name": "ovos-stt",
-          "provider_type": "http",
+          "name": "ovos_stt",
+          "call_template_type": "http",
+          "http_method": "GET",
           "url": "http://<host>:<port>/utcp"
         }
         ```

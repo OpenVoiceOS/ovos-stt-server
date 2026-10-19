@@ -56,7 +56,7 @@ class TestBuildUtcpManual:
     def test_stt_tool_call_template_url(self):
         stt = next(t for t in self.manual["tools"] if t["name"] == "stt")
         assert stt["tool_call_template"]["url"] == f"{self.BASE}/stt"
-        assert stt["tool_call_template"]["method"] == "POST"
+        assert stt["tool_call_template"]["http_method"] == "POST"
 
     def test_lang_detect_tool_call_template_url(self):
         ld = next(t for t in self.manual["tools"] if t["name"] == "lang_detect")
@@ -65,16 +65,18 @@ class TestBuildUtcpManual:
     def test_status_tool_call_template_url(self):
         st = next(t for t in self.manual["tools"] if t["name"] == "status")
         assert st["tool_call_template"]["url"] == f"{self.BASE}/status"
-        assert st["tool_call_template"]["method"] == "GET"
+        assert st["tool_call_template"]["http_method"] == "GET"
 
     def test_stt_inputs_has_body_field(self):
         stt = next(t for t in self.manual["tools"] if t["name"] == "stt")
         assert "body" in stt["inputs"]["properties"]
         assert "body" in stt["inputs"]["required"]
 
-    def test_lang_detect_inputs_requires_valid_langs(self):
+    def test_lang_detect_valid_langs_is_optional(self):
+        """/lang_detect works without valid_langs."""
         ld = next(t for t in self.manual["tools"] if t["name"] == "lang_detect")
-        assert "valid_langs" in ld["inputs"]["required"]
+        assert "valid_langs" in ld["inputs"]["properties"]
+        assert ld["inputs"]["required"] == ["body"]
 
     def test_trailing_slash_stripped(self):
         """base_url with trailing slash must produce clean URLs."""
@@ -92,9 +94,11 @@ class TestBuildUtcpManual:
             assert isinstance(tool.get("average_response_size"), int)
             assert tool["average_response_size"] > 0
 
-    def test_auth_none_on_all_tools(self):
-        for tool in self.manual["tools"]:
-            assert tool["tool_call_template"]["auth"] == {"type": "none"}
+    def test_manual_validates_against_utcp_1x(self):
+        from utcp.data.utcp_manual import UtcpManualSerializer
+        manual = UtcpManualSerializer().validate_dict(self.manual)
+        assert [t.tool_call_template.call_template_type for t in manual.tools] == ["http"] * 3
+        assert all(t.tool_call_template.auth is None for t in manual.tools)
 
 
 # ---------------------------------------------------------------------------
@@ -179,20 +183,21 @@ class TestBuildUtcpManualExtra:
             url = tool["tool_call_template"]["url"]
             assert "9090" in url, f"Port missing from URL in tool {tool['name']!r}: {url}"
 
-    def test_stt_query_params_template_has_sample_fields(self):
-        """The STT tool_call_template must expose sample_rate and sample_width."""
+    def test_stt_inputs_have_sample_fields(self):
+        """Arguments outside body_field are sent as query parameters."""
         stt = next(t for t in self.manual["tools"] if t["name"] == "stt")
-        qp = stt["tool_call_template"].get("query_params", {})
-        assert "sample_rate" in qp
-        assert "sample_width" in qp
+        props = stt["inputs"]["properties"]
+        assert "sample_rate" in props
+        assert "sample_width" in props
 
-    def test_all_tools_have_http_protocol(self):
+    def test_all_tools_have_http_call_template(self):
         for tool in self.manual["tools"]:
-            assert tool["tool_call_template"]["protocol"] == "http"
+            assert tool["tool_call_template"]["call_template_type"] == "http"
 
-    def test_all_tools_outputs_is_object(self):
-        for tool in self.manual["tools"]:
-            assert tool["outputs"]["type"] == "object"
+    def test_outputs_match_response_types(self):
+        """/stt answers text/plain; /lang_detect and /status answer JSON objects."""
+        types = {t["name"]: t["outputs"]["type"] for t in self.manual["tools"]}
+        assert types == {"stt": "string", "lang_detect": "object", "status": "object"}
 
     def test_lang_detect_outputs_has_lang_and_conf(self):
         ld = next(t for t in self.manual["tools"] if t["name"] == "lang_detect")
@@ -207,11 +212,13 @@ class TestBuildUtcpManualExtra:
     def test_stt_content_type_header(self):
         """STT tool must declare application/octet-stream Content-Type."""
         stt = next(t for t in self.manual["tools"] if t["name"] == "stt")
-        assert stt["tool_call_template"]["headers"]["Content-Type"] == "application/octet-stream"
+        assert stt["tool_call_template"]["content_type"] == "application/octet-stream"
+        assert stt["tool_call_template"]["body_field"] == "body"
 
     def test_lang_detect_content_type_header(self):
         ld = next(t for t in self.manual["tools"] if t["name"] == "lang_detect")
-        assert ld["tool_call_template"]["headers"]["Content-Type"] == "application/octet-stream"
+        assert ld["tool_call_template"]["content_type"] == "application/octet-stream"
+        assert ld["tool_call_template"]["body_field"] == "body"
 
     def test_status_tool_no_required_inputs(self):
         st = next(t for t in self.manual["tools"] if t["name"] == "status")
