@@ -14,6 +14,7 @@ this box** instead of a third-party cloud.
 | Replace an existing self-hosted STT server on the wire | [api-compatibility.md](api-compatibility.md) |
 | Bridge Home Assistant Voice / Voice PE | [wyoming-integration.md](wyoming-integration.md) |
 | Audio format negotiation | [audio-formats.md](audio-formats.md) |
+| Give AI agents (Claude, OVOS agents, UTCP clients) a transcription tool | [ai-agents.md](ai-agents.md) |
 
 ## Compat coverage
 

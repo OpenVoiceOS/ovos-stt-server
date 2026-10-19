@@ -10,7 +10,7 @@ ignore it. Authentication is the responsibility of your reverse proxy.
 
 Audio format conversion is provided by
 `ovos_stt_http_server.audio_utils.multipart_audio_to_audiodata()`. Install
-the `[audio]` extra (`pip install ovos-stt-http-server[audio]`) to enable
+the `[audio]` extra (`pip install --pre "ovos-stt-http-server[audio]"`) to enable
 non-WAV inputs via `pydub`.
 
 The shared network-redirect concept lives in

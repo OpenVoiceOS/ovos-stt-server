@@ -41,3 +41,4 @@ Input audio must be raw PCM: 16 kHz, mono, 16-bit signed integer (int16). Send b
 - [audio-formats.md](audio-formats.md): accepted audio encodings and conversion
 - [wyoming-integration.md](wyoming-integration.md): Home Assistant Voice / Wyoming bridge
 - [voice-pihole.md](voice-pihole.md): DNS-redirect + reverse-proxy recipes
+- [ai-agents.md](ai-agents.md): MCP and UTCP for AI agents
