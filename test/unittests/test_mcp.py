@@ -359,3 +359,133 @@ class TestCreateAppMcpDegradation:
 
         from fastapi import FastAPI
         assert isinstance(app, FastAPI)
+
+
+class TestTranscribeAudioFiles:
+    """A WAV file is decoded with its own format, not read as raw PCM."""
+
+    # 0.1 s of a known 16-bit ramp
+    MONO = b"".join(i.to_bytes(2, "little", signed=True) for i in range(-2205, 2205))
+
+    @pytest.fixture(autouse=True)
+    def _check_mcp(self):
+        import fastmcp
+
+    @staticmethod
+    def _wav(rate: int, channels: int = 1, width: int = 2, frames: bytes = None) -> bytes:
+        import io
+        import wave
+        if frames is None:
+            frames = b"".join(TestTranscribeAudioFiles.MONO[i:i + 2] * channels
+                              for i in range(0, len(TestTranscribeAudioFiles.MONO), 2))
+        buf = io.BytesIO()
+        with wave.open(buf, "wb") as wf:
+            wf.setnchannels(channels)
+            wf.setsampwidth(width)
+            wf.setframerate(rate)
+            wf.writeframes(frames)
+        return buf.getvalue()
+
+    @staticmethod
+    def _pcm16(*samples: int) -> bytes:
+        return b"".join(s.to_bytes(2, "little", signed=True) for s in samples)
+
+    def _received(self, **kwargs):
+        from ovos_stt_http_server.mcp_server import build_mcp_server
+        model = _make_model("decoded")
+        asyncio.run(build_mcp_server(model).call_tool("transcribe", {"lang": "en-us", **kwargs}))
+        audio = model.process_audio.call_args[0][0]
+        return audio.frame_data, audio.sample_rate, audio.sample_width
+
+    def test_wav_b64_uses_the_file_format(self):
+        wav = self._wav(44100)
+        received = self._received(audio_b64=base64.b64encode(wav).decode())
+        assert received == (self.MONO, 44100, 2)
+
+    def test_wav_path_uses_the_file_format(self, tmp_path):
+        path = tmp_path / "speech.wav"
+        path.write_bytes(self._wav(22050))
+        assert self._received(audio_path=str(path)) == (self.MONO, 22050, 2)
+
+    def test_stereo_wav_is_averaged_to_mono(self):
+        # (left, right) pairs and their mean; the sum of the first pair clips
+        pairs = [(20000, 20000), (1000, -1000), (3000, 0), (-32768, -32768)]
+        stereo = b"".join(self._pcm16(left, right) for left, right in pairs)
+        wav = self._wav(48000, channels=2, frames=stereo)
+        received = self._received(audio_b64=base64.b64encode(wav).decode())
+        assert received == (self._pcm16(20000, 0, 1500, -32768), 48000, 2)
+
+    def test_stereo_average_rounds_down(self):
+        # an odd sum has no exact mean; floor division pins -0.5 to -1
+        stereo = b"".join(self._pcm16(left, right) for left, right in [(-1, 0), (1, 0), (-3, 0)])
+        wav = self._wav(16000, channels=2, frames=stereo)
+        received = self._received(audio_b64=base64.b64encode(wav).decode())
+        assert received == (self._pcm16(-1, 0, -2), 16000, 2)
+
+    PCM_GUID = bytes.fromhex("0100000000001000800000aa00389b71")
+    FLOAT_GUID = bytes.fromhex("0300000000001000800000aa00389b71")
+    ALAW_GUID = bytes.fromhex("0600000000001000800000aa00389b71")
+
+    @staticmethod
+    def _extensible_wav(rate: int, channels: int, width: int, frames: bytes,
+                        subformat: bytes = PCM_GUID, before_fmt: bytes = b"") -> bytes:
+        """A WAVE_FORMAT_EXTENSIBLE file, as ffmpeg and sox write it."""
+        fmt = b"".join([
+            (0xFFFE).to_bytes(2, "little"), channels.to_bytes(2, "little"),
+            rate.to_bytes(4, "little"), (rate * channels * width).to_bytes(4, "little"),
+            (channels * width).to_bytes(2, "little"), (8 * width).to_bytes(2, "little"),
+            (22).to_bytes(2, "little"), (8 * width).to_bytes(2, "little"),
+            (0x3 if channels == 2 else 0x4).to_bytes(4, "little"), subformat])
+        body = (b"WAVE" + before_fmt + b"fmt " + len(fmt).to_bytes(4, "little") + fmt
+                + b"data" + len(frames).to_bytes(4, "little") + frames)
+        return b"RIFF" + len(body).to_bytes(4, "little") + body
+
+    def test_extensible_24bit_wav_becomes_16bit(self):
+        frames = b"".join(v.to_bytes(3, "little", signed=True) for v in (4660 * 256, -4660 * 256))
+        wav = self._extensible_wav(22050, 1, 3, frames)
+        received = self._received(audio_b64=base64.b64encode(wav).decode())
+        assert received == (self._pcm16(4660, -4660), 22050, 2)
+
+    @pytest.mark.parametrize("subformat", [FLOAT_GUID, ALAW_GUID], ids=["float", "alaw"])
+    def test_extensible_non_pcm_wav_is_rejected(self, subformat):
+        """Only a PCM subformat may be read as PCM; float or A-law samples would be noise."""
+        from ovos_stt_http_server.mcp_server import build_mcp_server
+        wav = self._extensible_wav(16000, 1, 4 if subformat == self.FLOAT_GUID else 1,
+                                   b"\x00\x00\x80\x3f" * 4, subformat=subformat)
+        model = _make_model("noise")
+        with pytest.raises(Exception, match="unknown"):
+            asyncio.run(build_mcp_server(model).call_tool(
+                "transcribe", {"audio_b64": base64.b64encode(wav).decode(), "lang": "en-us"}))
+        model.process_audio.assert_not_called()
+
+    def test_extensible_wav_after_an_odd_sized_chunk(self):
+        # RIFF pads a chunk of odd size with one byte before the next chunk
+        info = b"LIST" + (3).to_bytes(4, "little") + b"abc" + b"\x00"
+        frames = b"".join(v.to_bytes(3, "little", signed=True) for v in (4660 * 256, -4660 * 256))
+        wav = self._extensible_wav(22050, 1, 3, frames, before_fmt=info)
+        received = self._received(audio_b64=base64.b64encode(wav).decode())
+        assert received == (self._pcm16(4660, -4660), 22050, 2)
+
+    def test_extensible_stereo_wav_is_averaged(self):
+        frames = b"".join(self._pcm16(left, right) for left, right in [(20000, 20000), (3000, 0)])
+        wav = self._extensible_wav(48000, 2, 2, frames)
+        received = self._received(audio_b64=base64.b64encode(wav).decode())
+        assert received == (self._pcm16(20000, 1500), 48000, 2)
+
+    def test_8bit_wav_becomes_16bit(self):
+        # 8-bit WAV samples are unsigned, centred on 128
+        wav = self._wav(8000, width=1, frames=bytes([128, 178, 78, 255, 0]))
+        received = self._received(audio_b64=base64.b64encode(wav).decode())
+        assert received == (self._pcm16(0, 50 * 256, -50 * 256, 127 * 256, -128 * 256), 8000, 2)
+
+    def test_24bit_wav_becomes_16bit(self):
+        samples = (4660 * 256, -4660 * 256, 0)
+        frames = b"".join(v.to_bytes(3, "little", signed=True) for v in samples)
+        wav = self._wav(22050, width=3, frames=frames)
+        received = self._received(audio_b64=base64.b64encode(wav).decode())
+        assert received == (self._pcm16(4660, -4660, 0), 22050, 2)
+
+    def test_raw_pcm_keeps_the_given_format(self):
+        received = self._received(audio_b64=base64.b64encode(self.MONO).decode(),
+                                  sample_rate=8000, sample_width=2)
+        assert received == (self.MONO, 8000, 2)
