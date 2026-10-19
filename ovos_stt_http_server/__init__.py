@@ -222,7 +222,8 @@ class MultiModelContainer(TransformerPipelines):
 
     def load_engine(self, lang: str, config=None):
         # might need to load multiple models per language
-        config = config or self.config
+        # a copy per engine: the shared config keeps the configured language
+        config = dict(config or self.config)
         config["lang"] = lang
         self.engines[lang] = self.plugin_class(config=config)
         if self.lang_plugin:
