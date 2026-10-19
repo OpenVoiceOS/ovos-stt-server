@@ -105,11 +105,11 @@ def mcp_server():
 
     stub = _make_stub_model()
     try:
-        from ovos_stt_http_server.mcp_server import build_mcp_server
+        from ovos_stt_http_server.mcp_server import build_mcp
     except ImportError:
         pytest.skip("mcp extra not installed")
 
-    mcp = build_mcp_server(stub)
+    mcp = build_mcp(stub)
     mcp_app = mcp.http_app()
 
     try:
@@ -201,8 +201,7 @@ class TestMcpE2E:
                     return result.tools
 
         tools = asyncio.run(_run())
-        names = [t.name for t in tools]
-        assert "transcribe" in names
+        assert [t.name for t in tools] == ["transcribe"]
 
     def test_mcp_call_transcribe_tool(self, mcp_server):
         """Call the transcribe tool via MCP and get a text response."""
@@ -227,7 +226,7 @@ class TestMcpE2E:
             c.text if hasattr(c, "text") else (c.get("text", "") if isinstance(c, dict) else str(c))
             for c in result.content
         ]
-        assert any(texts), "Expected non-empty response from transcribe tool"
+        assert texts == ["hello from stub"]
 
 
 # ---------------------------------------------------------------------------

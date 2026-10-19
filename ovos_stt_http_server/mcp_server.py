@@ -24,11 +24,14 @@ from __future__ import annotations
 import base64
 import io
 import tempfile
+import warnings
 import wave
 from array import array
 from typing import TYPE_CHECKING, Optional
 
 from ovos_utils.log import LOG
+
+from ovos_stt_http_server.version import VERSION_MAJOR, VERSION_MINOR
 
 if TYPE_CHECKING:
     from ovos_plugin_manager.utils.audio import AudioData
@@ -97,8 +100,8 @@ def _to_audio_data(data: bytes, sample_rate: int, sample_width: int) -> "AudioDa
     return AudioData(pcm.tobytes(), rate, 2)
 
 
-def build_mcp_server(
-    model: "ModelContainer | MultiModelContainer",
+def build_mcp(
+    engine: "ModelContainer | MultiModelContainer",
     server_name: str = "ovos-stt",
 ) -> "FastMCP":
     """Create and return a configured :class:`FastMCP` instance.
@@ -109,7 +112,7 @@ def build_mcp_server(
 
     Parameters
     ----------
-    model:
+    engine:
         An initialised ``ModelContainer`` or ``MultiModelContainer``.
     server_name:
         Human-readable name reported in MCP server info.
@@ -165,36 +168,54 @@ def build_mcp_server(
 
         audio = _to_audio_data(raw_bytes, sample_rate, sample_width)
         # the container resolves "auto" the same way as for HTTP /stt
-        result = model.process_audio(audio, lang)
+        result = engine.process_audio(audio, lang)
         LOG.debug(f"[MCP] transcribe lang={lang} result={result!r}")
         return result or ""
 
     return mcp
 
 
-def mount_mcp_on_fastapi(app, model, path: str = "/mcp") -> None:
+class _MountRoot:
+    """ASGI app that serves the root of a mounted *app* at the bare mount *path*."""
+
+    def __init__(self, app, path: str):
+        self.app = app
+        self.path = path
+
+    async def __call__(self, scope, receive, send):
+        root_path = scope.get("root_path", "") + self.path
+        await self.app({**scope, "root_path": root_path, "path": root_path + "/"},
+                       receive, send)
+
+
+def mount_mcp(app, engine, path: str = "/mcp") -> None:
     """Mount the MCP server onto an existing FastAPI *app* at *path*.
 
-    Uses FastMCP's streamable-HTTP ASGI transport, which supports both the
-    legacy ``/sse`` event-stream and the newer ``POST /mcp`` single-request
-    format.  Clients may also connect via the SSE endpoint at ``/mcp/sse``.
+    Uses FastMCP's streamable-HTTP ASGI transport. There is no SSE endpoint.
 
     Parameters
     ----------
     app:
         A :class:`fastapi.FastAPI` (or any Starlette) application.
-    model:
+    engine:
         The STT model container.
     path:
         Mount prefix (default ``"/mcp"``).
     """
     _require_mcp()
-    mcp = build_mcp_server(model)
+    from starlette.routing import Route
+
+    mcp = build_mcp(engine)
     # Serve the streamable-HTTP transport at the mount root so the endpoint
     # is exactly *path* (FastMCP defaults to an internal /mcp sub-path, which
     # would yield /mcp/mcp when mounted).
     mcp_app = mcp.http_app(path="/", transport="streamable-http")
     app.mount(path, mcp_app)
+
+    # Mount(path) answers a request for the bare path with a 307 to path + "/".
+    # Behind a proxy the redirect can name the wrong scheme or host, and MCP
+    # clients refuse it, so the bare path is routed to the same transport.
+    app.router.routes.insert(0, Route(path, endpoint=_MountRoot(mcp_app, path)))
 
     # Starlette does not propagate lifespan events to mounted sub-apps, and
     # the streamable-HTTP transport requires its session manager running.
@@ -211,3 +232,22 @@ def mount_mcp_on_fastapi(app, model, path: str = "/mcp") -> None:
 
     app.router.lifespan_context = _lifespan_with_mcp
     LOG.info(f"MCP server mounted at {path} (streamable-HTTP)")
+
+
+def _deprecated(old: str, new: str) -> None:
+    warnings.warn(
+        f"{old} is deprecated, use {new}; it will be removed in "
+        f"{VERSION_MAJOR}.{VERSION_MINOR + 1}.0",
+        DeprecationWarning, stacklevel=3)
+
+
+def build_mcp_server(model, server_name: str = "ovos-stt") -> "FastMCP":
+    """Deprecated name of :func:`build_mcp`."""
+    _deprecated("build_mcp_server", "build_mcp")
+    return build_mcp(model, server_name)
+
+
+def mount_mcp_on_fastapi(app, model, path: str = "/mcp") -> None:
+    """Deprecated name of :func:`mount_mcp`."""
+    _deprecated("mount_mcp_on_fastapi", "mount_mcp")
+    mount_mcp(app, model, path)

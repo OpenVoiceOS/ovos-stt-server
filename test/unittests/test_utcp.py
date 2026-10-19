@@ -11,9 +11,10 @@
 # limitations under the License.
 """Tests for the UTCP manual endpoint."""
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from ovos_stt_http_server.routers.utcp import build_utcp_manual, make_utcp_router
+from ovos_stt_http_server.utcp import build_utcp_manual, make_utcp_router
 
 
 # ---------------------------------------------------------------------------
@@ -24,7 +25,7 @@ class TestBuildUtcpManual:
     BASE = "http://localhost:8080"
 
     def setup_method(self):
-        self.manual = build_utcp_manual(self.BASE)
+        self.manual = build_utcp_manual(None, self.BASE)
 
     def test_top_level_keys(self):
         assert "utcp_version" in self.manual
@@ -80,7 +81,7 @@ class TestBuildUtcpManual:
 
     def test_trailing_slash_stripped(self):
         """base_url with trailing slash must produce clean URLs."""
-        manual = build_utcp_manual(self.BASE + "/")
+        manual = build_utcp_manual(None, self.BASE + "/")
         stt = next(t for t in manual["tools"] if t["name"] == "stt")
         assert not stt["tool_call_template"]["url"].endswith("//stt")
 
@@ -112,7 +113,7 @@ class TestUtcpEndpoint:
     def _client(self):
         from fastapi import FastAPI
         app = FastAPI()
-        app.include_router(make_utcp_router())
+        app.include_router(make_utcp_router(None))
         self.client = TestClient(app)
 
     def test_get_utcp_returns_200(self):
@@ -175,7 +176,7 @@ class TestBuildUtcpManualExtra:
     BASE = "http://myserver.example.com:9090"
 
     def setup_method(self):
-        self.manual = build_utcp_manual(self.BASE)
+        self.manual = build_utcp_manual(None, self.BASE)
 
     def test_non_standard_port_preserved_in_urls(self):
         """Port 9090 must appear in every tool URL."""
@@ -223,3 +224,26 @@ class TestBuildUtcpManualExtra:
     def test_status_tool_no_required_inputs(self):
         st = next(t for t in self.manual["tools"] if t["name"] == "status")
         assert st["inputs"]["required"] == []
+
+
+class TestDeprecatedModule:
+    def test_routers_utcp_warns_and_serves_the_same_manual(self):
+        import importlib
+        import sys
+        from ovos_stt_http_server.version import VERSION_MAJOR, VERSION_MINOR
+        sys.modules.pop("ovos_stt_http_server.routers.utcp", None)
+        with pytest.warns(DeprecationWarning, match=f"removed in {VERSION_MAJOR}.{VERSION_MINOR + 1}.0"):
+            legacy = importlib.import_module("ovos_stt_http_server.routers.utcp")
+        base = "http://localhost:8080"
+        assert legacy.build_utcp_manual(base) == build_utcp_manual(None, base)
+        app = FastAPI()
+        app.include_router(legacy.make_utcp_router())
+        assert TestClient(app).get("/utcp").json() == build_utcp_manual(None, "http://testserver")
+
+
+class TestManualVersions:
+    def test_versions(self):
+        from ovos_stt_http_server.version import VERSION_MAJOR, VERSION_MINOR, VERSION_BUILD, VERSION_ALPHA
+        manual = build_utcp_manual(None, "http://localhost:8080")
+        expected = f"{VERSION_MAJOR}.{VERSION_MINOR}.{VERSION_BUILD}" + (f"a{VERSION_ALPHA}" if VERSION_ALPHA else "")
+        assert (manual["utcp_version"], manual["manual_version"]) == ("1.0.0", expected)
