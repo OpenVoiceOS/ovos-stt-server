@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.27.9a1](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.27.9a1) (2026-10-19)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.27.8a1...0.27.9a1)
+
+**Merged pull requests:**
+
+- fix\(multi\): give each engine its own copy of the config [\#128](https://github.com/OpenVoiceOS/ovos-stt-server/pull/128) ([openvoiceos-bot](https://github.com/openvoiceos-bot))
+
 ## [0.27.8a1](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.27.8a1) (2026-10-19)
 
 [Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.27.7a1...0.27.8a1)
@@ -176,15 +184,15 @@
 
 ## [0.1.5a3](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.5a3) (2025-12-18)
 
-[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a5...0.1.5a3)
-
-## [0.1.5a5](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.5a5) (2025-12-18)
-
-[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a4...0.1.5a5)
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a4...0.1.5a3)
 
 ## [0.1.5a4](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.5a4) (2025-12-18)
 
-[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a2...0.1.5a4)
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a5...0.1.5a4)
+
+## [0.1.5a5](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.5a5) (2025-12-18)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a2...0.1.5a5)
 
 **Merged pull requests:**
 
