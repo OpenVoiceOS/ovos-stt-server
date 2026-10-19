@@ -56,7 +56,7 @@ test = [
     # which does not even provide the amqtt module.
     "grpcio", "protobuf", "grpcio-tools", "paho-mqtt", "amqtt>=0.11,<1",
     # MCP server, exercised by the MCP/UTCP tests
-    "fastmcp>=3,<4",
+    "fastmcp>=4,<5",
     # reference UTCP client, drives /utcp end to end
     "utcp>=1.2", "utcp-http>=1.1",
 ]
@@ -65,7 +65,7 @@ test = [
 # of the required `test` extra; its e2e test skips when aiortc is absent (the
 # webrtc router is itself an optional, ImportError-gated feature of the server).
 test-webrtc = ["aiortc"]
-mcp = ["fastmcp>=3,<4"]
+mcp = ["fastmcp>=4,<5"]
 
 [project.urls]
 Homepage = "https://github.com/OpenVoiceOS/ovos-stt-http-server"
