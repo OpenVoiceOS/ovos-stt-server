@@ -506,3 +506,24 @@ class TestTranscribeAutoLanguage:
             app, _ = create_app("fake-plugin")
         http = TestClient(app).post("/stt?lang=auto", content=b"\x00" * 320).text
         assert self._mcp(container, lang="auto") == http == "transcribed:pt-pt"
+
+
+class TestMissingExtraWarning:
+    """--mcp without the extra must warn where an operator can see it."""
+
+    def test_warning_reaches_the_log_at_the_default_level(self):
+        import subprocess
+        import sys
+        script = (
+            "import sys; sys.modules['fastmcp'] = None\n"
+            "from unittest.mock import MagicMock, patch\n"
+            "with patch('ovos_stt_http_server.ModelContainer', return_value=MagicMock()):\n"
+            "    from ovos_stt_http_server import create_app\n"
+            "    create_app('stub-stt', enable_mcp=True)\n"
+        )
+        run = subprocess.run([sys.executable, "-c", script],
+                             capture_output=True, text=True, timeout=120)
+        assert run.returncode == 0, run.stderr
+        output = run.stdout + run.stderr
+        assert "WARNING" in output
+        assert 'pip install "ovos-stt-http-server[mcp]"' in output

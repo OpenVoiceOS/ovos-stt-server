@@ -23,8 +23,6 @@ from ovos_plugin_manager.utils.audio import AudioFile, AudioData
 from ovos_utils.log import LOG
 from starlette.requests import Request
 
-LOG.set_level("ERROR")  # avoid server side logs
-
 
 def _load_translator():
     """Load the configured OVOS translate plugin for /audio/translations.
@@ -418,7 +416,7 @@ def create_app(stt_plugin: str, lang_plugin: str = None, multi: bool = False,
         except ImportError:
             LOG.warning("MCP was requested (--mcp) but the optional dependency "
                         "is not installed; skipping MCP server. "
-                        "Enable with: pip install 'ovos-stt-http-server[mcp]'")
+                        'Enable with: pip install "ovos-stt-http-server[mcp]"')
 
     return app, model
 
