@@ -10,6 +10,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import base64
+import binascii
+import wave
 from typing import List, Tuple, Optional, Set, Union
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,7 +24,10 @@ from ovos_plugin_manager.transformer_services import (AudioTransformersService,
                                                       UtteranceTransformersService)
 from ovos_plugin_manager.utils.audio import AudioFile, AudioData
 from ovos_utils.log import LOG
+from pydantic import BaseModel, Field
 from starlette.requests import Request
+
+from ovos_stt_http_server.audio_utils import MAX_SAMPLE_RATE, to_audio_data
 
 
 def _load_translator():
@@ -351,6 +357,41 @@ def create_app(stt_plugin: str, lang_plugin: str = None, multi: bool = False,
         audio_bytes = await request.body()
         audio = AudioData(audio_bytes, sr, sw)
         return model.process_audio(audio, lang)
+
+    class SttJsonRequest(BaseModel):
+        audio_b64: str
+        lang: Optional[str] = None
+        sample_rate: int = Field(16000, gt=0, le=MAX_SAMPLE_RATE)
+        sample_width: int = Field(2, ge=1, le=4)
+
+    @app.post("/stt/json")
+    async def get_stt_json(req: SttJsonRequest):
+        """Transcribe base64 audio sent in a JSON body.
+
+        Tool-calling clients send JSON arguments and cannot send a raw byte
+        body, so this is the /stt that UTCP clients call. A WAV file is
+        decoded with its own format; other bytes are raw PCM at sample_rate
+        and sample_width.
+
+        Returns:
+            ``{"text": ..., "lang": ...}``, with the language the engine used.
+            HTTP 400 when audio_b64 is empty, is not base64, or is a WAV file
+            that cannot be read; HTTP 422 for an impossible sample_rate or
+            sample_width.
+        """
+        try:
+            audio_bytes = base64.b64decode(req.audio_b64, validate=True)
+        except binascii.Error as e:
+            raise HTTPException(status_code=400, detail=f"audio_b64 is not valid base64: {e}")
+        if not audio_bytes:
+            raise HTTPException(status_code=400, detail="audio_b64 is empty")
+        try:
+            audio = to_audio_data(audio_bytes, req.sample_rate, req.sample_width)
+        except (wave.Error, EOFError) as e:
+            raise HTTPException(status_code=400, detail=f"audio_b64 is not a readable WAV file: {e!r}")
+        lang = str(req.lang or Configuration().get("lang", "auto")).lower()
+        text, lang = model.transcribe(audio, lang)
+        return {"text": text, "lang": lang}
 
     @app.post("/lang_detect")
     async def get_lang(request: Request):

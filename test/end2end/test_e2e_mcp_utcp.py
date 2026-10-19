@@ -46,6 +46,7 @@ def _free_port() -> int:
 def _make_stub_model(transcription: str = "hello from stub") -> MagicMock:
     model = MagicMock()
     model.process_audio.return_value = transcription
+    model.transcribe.return_value = (transcription, "en-us")
     model.detect_language.return_value = ("en-us", 0.95)
     return model
 
@@ -148,16 +149,10 @@ class TestUtcpE2E:
         stt_tool = next((t for t in data["tools"] if t["name"] == "stt"), None)
         assert stt_tool is not None, "stt tool not found in UTCP manual"
         url = stt_tool["tool_call_template"]["url"]
-        # POST raw audio bytes — stub always returns the transcription
-        # Do not pass sample_rate/sample_width; the endpoint uses defaults
-        audio_bytes = b"\x00" * 320
-        resp = httpx.post(
-            url,
-            content=audio_bytes,
-            params={"lang": "en-us"},
-            timeout=10,
-        )
+        resp = httpx.post(url, json={"audio_b64": base64.b64encode(b"\x00" * 320).decode(),
+                                     "lang": "en-us"}, timeout=10)
         assert resp.status_code == 200
+        assert resp.json() == {"text": "hello from stub", "lang": "en-us"}
 
     def test_utcp_status_url_responds(self, live_server):
         data = httpx.get(f"{live_server}/utcp", timeout=10).json()
@@ -280,13 +275,14 @@ class TestUtcpClientE2E:
     def test_client_calls_every_tool(self, utcp_server, recording_stub):
         _, (status, text, detected) = _utcp_session(utcp_server, [
             ("ovos_stt.status", {}),
-            ("ovos_stt.stt", {"body": _PCM, "lang": "en-us", "sample_rate": 16000}),
+            ("ovos_stt.stt", {"body": {"audio_b64": base64.b64encode(_PCM).decode(),
+                                       "lang": "en-us", "sample_rate": 16000}}),
             ("ovos_stt.lang_detect", {"body": _PCM, "valid_langs": "en-us,pt-pt"}),
         ])
         assert status == {"status": "ok", "plugin": "stub-stt", "lang_plugin": None}
-        assert text == "hello from stub"
+        assert text == {"text": "hello from stub", "lang": "en-us"}
         assert detected == {"lang": "en-us", "conf": 0.95}
-        audio, lang = recording_stub.process_audio.call_args.args
+        audio, lang = recording_stub.transcribe.call_args.args
         assert (audio.frame_data, audio.sample_rate, lang) == (_PCM, 16000, "en-us")
         assert recording_stub.detect_language.call_args.args[0] == _PCM
         assert recording_stub.detect_language.call_args.kwargs == {"valid_langs": ["en-us", "pt-pt"]}
