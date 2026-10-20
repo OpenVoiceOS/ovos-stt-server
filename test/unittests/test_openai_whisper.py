@@ -263,7 +263,7 @@ def test_translations_runs_through_translator():
     c = _client_with_translator()
     resp = c.post(
         "/openai/v1/audio/translations",
-        files={"file": ("a.wav", io.BytesIO(b"RIFFxxxx"), "audio/wav")},
+        files={"file": ("a.wav", _wav_bytes(), "audio/wav")},
         data={"model": "whisper-1"},
     )
     assert resp.status_code == 200
@@ -281,7 +281,7 @@ def test_translations_without_translator_returns_transcript():
     c = TestClient(app)
     resp = c.post(
         "/openai/v1/audio/translations",
-        files={"file": ("a.wav", io.BytesIO(b"RIFFxxxx"), "audio/wav")},
+        files={"file": ("a.wav", _wav_bytes(), "audio/wav")},
         data={"model": "whisper-1"},
     )
     assert resp.status_code == 200
@@ -338,3 +338,80 @@ def test_router_forwards_explicit_language_unchanged():
 
     assert resp.status_code == 200
     assert model.lang == "it"
+
+
+# ---------------------------------------------------------------------------
+# Compressed uploads: the OpenAI, Groq and ElevenLabs Scribe SDKs send FLAC,
+# MP3 or OGG as they are. The engine must get the decoded PCM, not the
+# compressed bytes read as PCM.
+# ---------------------------------------------------------------------------
+
+class _FrameCounter:
+    """Model stub that reports what the engine received."""
+
+    def process_audio(self, audio, lang: str = "auto") -> str:
+        return f"{audio.sample_rate}Hz {len(audio.frame_data) // audio.sample_width} samples"
+
+
+def _tone_wav(seconds: float = 0.5, rate: int = 16000) -> bytes:
+    import math
+    from array import array
+    pcm = array("h", (int(8000 * math.sin(2 * math.pi * 440 * n / rate)) for n in range(int(seconds * rate))))
+    buf = io.BytesIO()
+    with wave.open(buf, "w") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(rate)
+        wf.writeframes(pcm.tobytes())
+    return buf.getvalue()
+
+
+def _encode(fmt: str) -> bytes:
+    """Encode the tone with ffmpeg through pydub, the [audio] extra's decoder."""
+    from pydub import AudioSegment
+    buf = io.BytesIO()
+    AudioSegment.from_wav(io.BytesIO(_tone_wav())).export(buf, format=fmt)
+    return buf.getvalue()
+
+
+@pytest.fixture(scope="module")
+def counter_app() -> TestClient:
+    from ovos_stt_http_server.routers.elevenlabs_scribe import make_elevenlabs_scribe_router
+    from ovos_stt_http_server.routers.groq import make_groq_router
+    from ovos_stt_http_server.routers.openai_whisper import make_openai_whisper_router
+
+    app = FastAPI()
+    app.include_router(make_openai_whisper_router(_FrameCounter()))
+    app.include_router(make_groq_router(_FrameCounter()))
+    app.include_router(make_elevenlabs_scribe_router(_FrameCounter()))
+    return TestClient(app)
+
+
+_ROUTES = [
+    ("/openai/v1/audio/transcriptions", {"model": "whisper-1"}),
+    ("/groq/openai/v1/audio/transcriptions", {"model": "whisper-large-v3"}),
+    ("/elevenlabs/v1/speech-to-text", {"model_id": "scribe_v1"}),
+]
+
+
+@pytest.mark.parametrize("path, form", _ROUTES)
+@pytest.mark.parametrize("fmt", ["flac", "mp3", "ogg"])
+def test_compressed_upload_reaches_the_engine_decoded(counter_app, path, form, fmt):
+    resp = counter_app.post(path, files={"file": (f"speech.{fmt}", _encode(fmt), f"audio/{fmt}")}, data=form)
+    assert resp.status_code == 200, resp.text
+    rate, samples, _ = resp.json()["text"].split()
+    assert rate == "16000Hz"
+    # 0.5 s of audio decodes to about 8000 samples; MP3 framing adds a little padding
+    assert 7500 <= int(samples) <= 9500
+
+
+@pytest.mark.parametrize("path, form", _ROUTES)
+def test_wav_named_upload_without_wav_header_is_rejected(counter_app, path, form):
+    resp = counter_app.post(path, files={"file": ("speech.wav", b"this is not audio", "audio/wav")}, data=form)
+    assert resp.status_code == 400
+
+
+@pytest.mark.parametrize("path, form", _ROUTES)
+def test_undecodable_compressed_upload_is_rejected(counter_app, path, form):
+    resp = counter_app.post(path, files={"file": ("speech.mp3", b"ID3 then nothing", "audio/mpeg")}, data=form)
+    assert resp.status_code == 400

@@ -77,6 +77,51 @@ def _as_plain_pcm_wav(data: bytes) -> bytes:
     return data
 
 
+# Extensions the vendor speech-to-text APIs accept besides WAV; pydub decodes them.
+_COMPRESSED_EXTENSIONS = {"flac", "mp3", "mpga", "mpeg", "m4a", "mp4", "ogg", "oga", "opus", "webm", "aac"}
+_COMPRESSED_MAGIC = (b"fLaC", b"OggS", b"ID3", b"\xff\xfb", b"\xff\xf3", b"\xff\xf2", b"\x1aE\xdf\xa3")
+_RAW_EXTENSIONS = {"raw", "pcm"}
+
+
+def upload_to_audio_data(data: bytes, filename: str = "") -> AudioData:
+    """Decode an uploaded audio file the way the vendor speech-to-text APIs accept it.
+
+    WAV goes through :func:`to_audio_data`. FLAC, MP3, OGG, M4A and WebM go
+    through pydub. A ``.raw``/``.pcm`` upload, or one with no recognisable
+    container, is read as 16 kHz 16-bit mono PCM.
+
+    Raises:
+        HTTPException: 400 when the bytes are not decodable audio, 501 when a
+            compressed upload needs pydub and it is not installed.
+    """
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    if data[:4] == b"RIFF":
+        try:
+            return to_audio_data(data, 16000, 2)
+        except (wave.Error, EOFError) as e:
+            raise HTTPException(status_code=400, detail=f"Unreadable WAV file: {e}") from e
+    if ext in _RAW_EXTENSIONS:
+        return AudioData(data, 16000, 2)
+    if ext in _COMPRESSED_EXTENSIONS or data.startswith(_COMPRESSED_MAGIC) or data[4:8] == b"ftyp":
+        try:
+            from pydub import AudioSegment
+        except ImportError as e:
+            raise HTTPException(
+                status_code=501,
+                detail=f"Decoding '{ext or 'compressed'}' audio requires pydub: "
+                       f"pip install 'ovos-stt-http-server[audio]'",
+            ) from e
+        try:
+            segment = AudioSegment.from_file(io.BytesIO(data))
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Could not decode the audio file: {e}") from e
+        segment = segment.set_frame_rate(16000).set_channels(1).set_sample_width(2)
+        return AudioData(segment.raw_data, 16000, 2)
+    if ext == "wav":
+        raise HTTPException(status_code=400, detail="The file is named .wav but has no WAV header.")
+    return AudioData(data, 16000, 2)
+
+
 def to_audio_data(data: bytes, sample_rate: int, sample_width: int) -> AudioData:
     """Decode a WAV file to 16-bit mono PCM; read other bytes as raw PCM.
 
