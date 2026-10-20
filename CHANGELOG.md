@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.27.11a1](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.27.11a1) (2026-10-20)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.27.10a1...0.27.11a1)
+
+**Merged pull requests:**
+
+- fix\(mcp\): resolve lang "auto" in the container, as HTTP /stt does [\#126](https://github.com/OpenVoiceOS/ovos-stt-server/pull/126) ([openvoiceos-bot](https://github.com/openvoiceos-bot))
+
 ## [0.27.10a1](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.27.10a1) (2026-10-19)
 
 [Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.27.9a1...0.27.10a1)
@@ -184,19 +192,19 @@
 
 ## [0.1.5a7](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.5a7) (2025-12-19)
 
-[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a3...0.1.5a7)
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a5...0.1.5a7)
 
 **Merged pull requests:**
 
 - Update dependency ovos-plugin-manager to v2 [\#43](https://github.com/OpenVoiceOS/ovos-stt-server/pull/43) ([renovate[bot]](https://github.com/apps/renovate))
 
-## [0.1.5a3](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.5a3) (2025-12-18)
-
-[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a5...0.1.5a3)
-
 ## [0.1.5a5](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.5a5) (2025-12-18)
 
-[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a4...0.1.5a5)
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a3...0.1.5a5)
+
+## [0.1.5a3](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.5a3) (2025-12-18)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a4...0.1.5a3)
 
 ## [0.1.5a4](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.5a4) (2025-12-18)
 
