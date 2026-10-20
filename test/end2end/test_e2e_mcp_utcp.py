@@ -194,7 +194,7 @@ class TestMcpE2E:
         from mcp import ClientSession
 
         async def _run():
-            async with streamable_http_client(mcp_server) as (r, w, _):
+            async with streamable_http_client(mcp_server) as (r, w):
                 async with ClientSession(r, w) as session:
                     await session.initialize()
                     result = await session.list_tools()
@@ -212,7 +212,7 @@ class TestMcpE2E:
         audio_b64 = base64.b64encode(b"\x00" * 320).decode()
 
         async def _run():
-            async with streamable_http_client(mcp_server) as (r, w, _):
+            async with streamable_http_client(mcp_server) as (r, w):
                 async with ClientSession(r, w) as session:
                     await session.initialize()
                     result = await session.call_tool(
