@@ -22,19 +22,16 @@ Install the optional dependency group to enable::
 from __future__ import annotations
 
 import base64
-import io
 import tempfile
 import warnings
-import wave
-from array import array
 from typing import TYPE_CHECKING, Optional
 
 from ovos_utils.log import LOG
 
+from ovos_stt_http_server.audio_utils import to_audio_data
 from ovos_stt_http_server.version import VERSION_MAJOR, VERSION_MINOR
 
 if TYPE_CHECKING:
-    from ovos_plugin_manager.utils.audio import AudioData
     from ovos_stt_http_server import ModelContainer, MultiModelContainer
 
 _MCP_AVAILABLE = False
@@ -51,53 +48,6 @@ def _require_mcp() -> None:
             "FastMCP is not installed. "
             'Enable the extra: pip install "ovos-stt-http-server[mcp]"'
         )
-
-
-_WAVE_FORMAT_PCM = (1).to_bytes(2, "little")
-_WAVE_FORMAT_EXTENSIBLE = (0xFFFE).to_bytes(2, "little")
-_KSDATAFORMAT_SUBTYPE_PCM = bytes.fromhex("0100000000001000800000aa00389b71")
-
-
-def _as_plain_pcm_wav(data: bytes) -> bytes:
-    """Give a WAVE_FORMAT_EXTENSIBLE file with a PCM subformat the plain PCM tag.
-
-    ffmpeg and sox write the extensible tag for 24-bit, 32-bit and
-    multi-channel PCM, and ``wave`` before Python 3.12 rejects it.
-    """
-    pos = 12
-    while pos + 8 <= len(data):
-        chunk_id, size = data[pos:pos + 4], int.from_bytes(data[pos + 4:pos + 8], "little")
-        if chunk_id == b"fmt ":
-            tag = data[pos + 8:pos + 10]
-            subformat = data[pos + 32:pos + 48]
-            if tag == _WAVE_FORMAT_EXTENSIBLE and subformat == _KSDATAFORMAT_SUBTYPE_PCM:
-                return data[:pos + 8] + _WAVE_FORMAT_PCM + data[pos + 10:]
-            return data
-        pos += 8 + size + (size & 1)
-    return data
-
-
-def _to_audio_data(data: bytes, sample_rate: int, sample_width: int) -> "AudioData":
-    """Decode a WAV file to 16-bit mono PCM; read other bytes as raw PCM.
-
-    The channels of a multi-channel WAV are averaged, so equal loud channels
-    do not clip as a plain sum would.
-    """
-    from ovos_plugin_manager.utils.audio import AudioData
-
-    if data[:4] != b"RIFF":
-        return AudioData(data, sample_rate, sample_width)
-
-    with wave.open(io.BytesIO(_as_plain_pcm_wav(data))) as wf:
-        channels, width, rate = wf.getnchannels(), wf.getsampwidth(), wf.getframerate()
-        frames = wf.readframes(wf.getnframes())
-    # AudioData reads 8-bit samples as unsigned, as WAV stores them. Width
-    # conversion works sample by sample, so it is safe on interleaved frames.
-    pcm = array("h", AudioData(frames, rate, width).get_raw_data(convert_width=2))
-    if channels > 1:
-        pcm = array("h", (sum(frame) // channels
-                          for frame in zip(*(pcm[c::channels] for c in range(channels)))))
-    return AudioData(pcm.tobytes(), rate, 2)
 
 
 def build_mcp(
@@ -166,7 +116,7 @@ def build_mcp(
             assert audio_b64 is not None  # guarded by the ValueError above
             raw_bytes = base64.b64decode(audio_b64)
 
-        audio = _to_audio_data(raw_bytes, sample_rate, sample_width)
+        audio = to_audio_data(raw_bytes, sample_rate, sample_width)
         # the container resolves "auto" the same way as for HTTP /stt
         result = engine.process_audio(audio, lang)
         LOG.debug(f"[MCP] transcribe lang={lang} result={result!r}")

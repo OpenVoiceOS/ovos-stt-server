@@ -36,40 +36,48 @@ def _stt_tool(base_url: str) -> Dict[str, Any]:
     return {
         "name": "stt",
         "description": (
-            "Transcribe raw PCM audio to text. "
-            "POST raw audio bytes to /stt with query params: "
-            "lang (BCP-47 tag or 'auto'), sample_rate (default 16000), "
-            "sample_width (default 2). Returns plain-text transcription."
+            "Transcribe speech to text. Send the audio as base64 in body.audio_b64: "
+            "a WAV file, or raw 16-bit mono PCM at body.sample_rate. "
+            "Returns {text, lang}."
         ),
         "inputs": {
             "type": "object",
             "properties": {
                 "body": {
-                    "type": "string",
-                    "format": "binary",
-                    "description": "Raw PCM audio bytes (request body).",
-                },
-                "lang": {
-                    "type": "string",
-                    "default": "auto",
-                    "description": "BCP-47 language tag or 'auto' for detection.",
-                },
-                "sample_rate": {
-                    "type": "integer",
-                    "default": 16000,
-                    "description": "Audio sample rate in Hz.",
-                },
-                "sample_width": {
-                    "type": "integer",
-                    "default": 2,
-                    "description": "Audio sample width in bytes (2 = 16-bit).",
+                    "type": "object",
+                    "description": "JSON request body for POST /stt/json.",
+                    "properties": {
+                        "audio_b64": {
+                            "type": "string",
+                            "description": "Base64 of a WAV file or of raw PCM audio.",
+                        },
+                        "lang": {
+                            "type": "string",
+                            "description": "BCP-47 language tag, or 'auto' to resolve it. "
+                                           "Default: the server's configured language.",
+                        },
+                        "sample_rate": {
+                            "type": "integer",
+                            "default": 16000,
+                            "description": "Sample rate of raw PCM in Hz. A WAV file uses its own.",
+                        },
+                        "sample_width": {
+                            "type": "integer",
+                            "default": 2,
+                            "description": "Bytes per sample of raw PCM. A WAV file uses its own.",
+                        },
+                    },
+                    "required": ["audio_b64"],
                 },
             },
             "required": ["body"],
         },
         "outputs": {
-            "type": "string",
-            "description": "Transcribed text (text/plain).",
+            "type": "object",
+            "properties": {
+                "text": {"type": "string", "description": "Transcribed text."},
+                "lang": {"type": "string", "description": "Language the engine transcribed in."},
+            },
         },
         "tags": ["stt", "speech-to-text", "ovos"],
         "average_response_size": 256,
@@ -77,8 +85,8 @@ def _stt_tool(base_url: str) -> Dict[str, Any]:
             "name": "ovos_stt",
             "call_template_type": "http",
             "http_method": "POST",
-            "url": f"{base_url}/stt",
-            "content_type": "application/octet-stream",
+            "url": f"{base_url}/stt/json",
+            "content_type": "application/json",
             "body_field": "body",
         },
     }
