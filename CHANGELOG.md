@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.27.12a1](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.27.12a1) (2026-10-20)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.27.11a2...0.27.12a1)
+
+**Merged pull requests:**
+
+- fix: keep the log level when the package is imported [\#134](https://github.com/OpenVoiceOS/ovos-stt-server/pull/134) ([openvoiceos-bot](https://github.com/openvoiceos-bot))
+
 ## [0.27.11a2](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.27.11a2) (2026-10-20)
 
 [Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.27.11a1...0.27.11a2)
