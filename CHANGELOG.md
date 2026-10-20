@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.28.1a2](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.28.1a2) (2026-10-20)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.28.1a1...0.28.1a2)
+
+**Merged pull requests:**
+
+- docs: add opencode and Mistral Vibe MCP client recipes [\#145](https://github.com/OpenVoiceOS/ovos-stt-server/pull/145) ([openvoiceos-bot](https://github.com/openvoiceos-bot))
+- fix\(openai\): report the audio length in duration and subtitle cues [\#142](https://github.com/OpenVoiceOS/ovos-stt-server/pull/142) ([openvoiceos-bot](https://github.com/openvoiceos-bot))
+
 ## [0.28.1a1](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.28.1a1) (2026-10-20)
 
 [Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.28.0a2...0.28.1a1)
@@ -239,27 +248,19 @@
 
 ## [0.1.5a7](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.5a7) (2025-12-19)
 
-[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a4...0.1.5a7)
-
-**Merged pull requests:**
-
-- Update dependency ovos-plugin-manager to v2 [\#43](https://github.com/OpenVoiceOS/ovos-stt-server/pull/43) ([renovate[bot]](https://github.com/apps/renovate))
-
-## [0.1.5a4](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.5a4) (2025-12-18)
-
-[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a3...0.1.5a4)
-
-## [0.1.5a3](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.5a3) (2025-12-18)
-
-[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a5...0.1.5a3)
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a5...0.1.5a7)
 
 ## [0.1.5a5](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.5a5) (2025-12-18)
 
-[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a2...0.1.5a5)
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a3...0.1.5a5)
 
-**Merged pull requests:**
+## [0.1.5a3](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.5a3) (2025-12-18)
 
-- Update actions/setup-python action to v6 [\#41](https://github.com/OpenVoiceOS/ovos-stt-server/pull/41) ([renovate[bot]](https://github.com/apps/renovate))
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a4...0.1.5a3)
+
+## [0.1.5a4](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.5a4) (2025-12-18)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a2...0.1.5a4)
 
 ## [0.1.5a2](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.5a2) (2025-12-18)
 
