@@ -46,7 +46,7 @@ def _require_mcp() -> None:
     if not _MCP_AVAILABLE:
         raise ImportError(
             "FastMCP is not installed. "
-            "Enable the extra: pip install 'ovos-stt-http-server[mcp]'"
+            'Enable the extra: pip install "ovos-stt-http-server[mcp]"'
         )
 
 
