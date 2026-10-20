@@ -415,3 +415,33 @@ def test_wav_named_upload_without_wav_header_is_rejected(counter_app, path, form
 def test_undecodable_compressed_upload_is_rejected(counter_app, path, form):
     resp = counter_app.post(path, files={"file": ("speech.mp3", b"ID3 then nothing", "audio/mpeg")}, data=form)
     assert resp.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# Timing fields: duration and subtitle cues describe the audio, not how long
+# the engine took.
+# ---------------------------------------------------------------------------
+
+_SECONDS = 75.25  # past a minute, so a seconds-only timestamp shows the defect
+
+
+def _post_long_clip(client: TestClient, response_format: str):
+    return client.post(
+        "/openai/v1/audio/transcriptions",
+        files={"file": ("audio.wav", _wav_bytes(int(16000 * _SECONDS)), "audio/wav")},
+        data={"model": "whisper-1", "response_format": response_format},
+    )
+
+
+def test_verbose_json_duration_is_the_audio_length(client):
+    body = _post_long_clip(client, "verbose_json").json()
+    assert body["duration"] == _SECONDS
+    assert body["segments"][0]["end"] == _SECONDS
+
+
+def test_srt_cue_spans_the_audio_with_comma_milliseconds(client):
+    assert _post_long_clip(client, "srt").text == "1\n00:00:00,000 --> 00:01:15,250\nhello world\n\n"
+
+
+def test_vtt_cue_spans_the_audio_with_dot_milliseconds(client):
+    assert _post_long_clip(client, "vtt").text == "WEBVTT\n\n00:00:00.000 --> 00:01:15.250\nhello world\n\n"
