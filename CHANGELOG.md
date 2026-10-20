@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.28.2a1](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.28.2a1) (2026-10-20)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.28.1a2...0.28.2a1)
+
+**Merged pull requests:**
+
+- fix\(openai\): report the audio length in duration and subtitle cues [\#142](https://github.com/OpenVoiceOS/ovos-stt-server/pull/142) ([openvoiceos-bot](https://github.com/openvoiceos-bot))
+
 ## [0.28.1a2](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.28.1a2) (2026-10-20)
 
 [Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.28.1a1...0.28.1a2)
@@ -7,7 +15,6 @@
 **Merged pull requests:**
 
 - docs: add opencode and Mistral Vibe MCP client recipes [\#145](https://github.com/OpenVoiceOS/ovos-stt-server/pull/145) ([openvoiceos-bot](https://github.com/openvoiceos-bot))
-- fix\(openai\): report the audio length in duration and subtitle cues [\#142](https://github.com/OpenVoiceOS/ovos-stt-server/pull/142) ([openvoiceos-bot](https://github.com/openvoiceos-bot))
 
 ## [0.28.1a1](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.28.1a1) (2026-10-20)
 
@@ -233,10 +240,6 @@
 ## [0.1.5a10](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.5a10) (2026-01-09)
 
 [Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a8...0.1.5a10)
-
-**Closed issues:**
-
-- ffmpeg requirement? [\#44](https://github.com/OpenVoiceOS/ovos-stt-server/issues/44)
 
 ## [0.1.5a8](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.5a8) (2026-01-09)
 
