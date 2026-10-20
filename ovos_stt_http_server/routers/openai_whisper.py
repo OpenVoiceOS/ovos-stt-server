@@ -16,7 +16,6 @@ Then point the SDK at the server::
     client = OpenAI(api_key="ignored", base_url="http://localhost:8080/openai/v1")
     result = client.audio.transcriptions.create(file=audio_bytes, model="whisper-1")
 """
-import time
 from typing import List, Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
@@ -61,6 +60,15 @@ class VerboseTranscriptionResponse(BaseModel):
     text: str
     segments: List[TranscriptionSegment] = Field(default_factory=list)
     words: List[dict] = Field(default_factory=list)
+
+
+def _timestamp(seconds: float, decimal_mark: str) -> str:
+    """Format seconds as ``HH:MM:SS<mark>mmm``; SRT uses a comma, WebVTT a dot."""
+    millis = round(seconds * 1000)
+    hours, millis = divmod(millis, 3_600_000)
+    minutes, millis = divmod(millis, 60_000)
+    secs, millis = divmod(millis, 1000)
+    return f"{hours:02d}:{minutes:02d}:{secs:02d}{decimal_mark}{millis:03d}"
 
 
 # ---------------------------------------------------------------------------
@@ -121,9 +129,9 @@ def make_openai_whisper_router(model, translator=None) -> APIRouter:
             raise HTTPException(status_code=400, detail="Empty audio file.")
 
         audio = upload_to_audio_data(file_bytes, file.filename or "")
+        duration = len(audio.frame_data) / (audio.sample_rate * audio.sample_width)
         lang = language or "auto"
 
-        start = time.time()
         # transcribe() reports the language the engine answered in, so a
         # request that asked for "auto" no longer leaves lang unresolved: the
         # translation below needs the real source, and verbose_json reports it.
@@ -145,7 +153,6 @@ def make_openai_whisper_router(model, translator=None) -> APIRouter:
                 pass  # fall back to the untranslated transcript
         if translate:
             lang = "en"
-        duration = time.time() - start
 
         fmt = (response_format or "json").lower()
 
@@ -153,11 +160,11 @@ def make_openai_whisper_router(model, translator=None) -> APIRouter:
             return PlainTextResponse(content=transcript)
 
         if fmt == "srt":
-            srt = f"1\n00:00:00,000 --> 00:00:{duration:06.3f}\n{transcript}\n\n"
+            srt = f"1\n{_timestamp(0, ',')} --> {_timestamp(duration, ',')}\n{transcript}\n\n"
             return PlainTextResponse(content=srt, media_type="text/plain")
 
         if fmt == "vtt":
-            vtt = f"WEBVTT\n\n00:00:00.000 --> 00:00:{duration:06.3f}\n{transcript}\n\n"
+            vtt = f"WEBVTT\n\n{_timestamp(0, '.')} --> {_timestamp(duration, '.')}\n{transcript}\n\n"
             return PlainTextResponse(content=vtt, media_type="text/plain")
 
         if fmt == "verbose_json":
