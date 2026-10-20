@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.28.1a1](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.28.1a1) (2026-10-20)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.28.0a2...0.28.1a1)
+
+**Merged pull requests:**
+
+- fix\(openai\): decode compressed uploads on the vendor STT routes [\#141](https://github.com/OpenVoiceOS/ovos-stt-server/pull/141) ([openvoiceos-bot](https://github.com/openvoiceos-bot))
+
 ## [0.28.0a2](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.28.0a2) (2026-10-20)
 
 [Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.28.0a1...0.28.0a2)
@@ -252,7 +260,6 @@
 **Merged pull requests:**
 
 - Update actions/setup-python action to v6 [\#41](https://github.com/OpenVoiceOS/ovos-stt-server/pull/41) ([renovate[bot]](https://github.com/apps/renovate))
-- Update actions/checkout action to v6 [\#38](https://github.com/OpenVoiceOS/ovos-stt-server/pull/38) ([renovate[bot]](https://github.com/apps/renovate))
 
 ## [0.1.5a2](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.5a2) (2025-12-18)
 
@@ -261,6 +268,90 @@
 ## [0.1.5a1](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.5a1) (2025-04-05)
 
 [Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.4...0.1.5a1)
+
+## [0.1.4](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.4) (2025-03-15)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.4a1...0.1.4)
+
+## [0.1.4a1](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.4a1) (2025-03-15)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.3...0.1.4a1)
+
+## [0.1.3](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.3) (2025-01-16)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.2...0.1.3)
+
+## [0.1.2](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.2) (2025-01-15)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.2a1...0.1.2)
+
+## [0.1.2a1](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.2a1) (2025-01-15)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.1...0.1.2a1)
+
+## [0.1.1](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.1) (2024-11-24)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.1a1...0.1.1)
+
+## [0.1.1a1](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.1a1) (2024-11-24)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.0...0.1.1a1)
+
+## [0.1.0](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.0) (2024-11-24)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.0.3...0.1.0)
+
+## [0.0.3](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.0.3) (2024-11-24)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.0.3a4...0.0.3)
+
+## [0.0.3a4](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.0.3a4) (2024-11-24)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.0.3a3...0.0.3a4)
+
+## [0.0.3a3](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.0.3a3) (2024-11-24)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.0.3a2...0.0.3a3)
+
+## [0.0.3a2](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.0.3a2) (2024-10-01)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.0.3a1...0.0.3a2)
+
+## [0.0.3a1](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.0.3a1) (2023-10-14)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.0.2...0.0.3a1)
+
+## [0.0.2](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.0.2) (2023-06-26)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.0.2a10...0.0.2)
+
+## [0.0.2a10](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.0.2a10) (2023-06-26)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/V0.0.2a9...0.0.2a10)
+
+## [V0.0.2a9](https://github.com/OpenVoiceOS/ovos-stt-server/tree/V0.0.2a9) (2023-06-22)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/V0.0.2a8...V0.0.2a9)
+
+## [V0.0.2a8](https://github.com/OpenVoiceOS/ovos-stt-server/tree/V0.0.2a8) (2023-05-31)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/V0.0.2a7...V0.0.2a8)
+
+## [V0.0.2a7](https://github.com/OpenVoiceOS/ovos-stt-server/tree/V0.0.2a7) (2023-05-30)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/V0.0.2a6...V0.0.2a7)
+
+## [V0.0.2a6](https://github.com/OpenVoiceOS/ovos-stt-server/tree/V0.0.2a6) (2023-05-30)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/V0.0.2a5...V0.0.2a6)
+
+## [V0.0.2a5](https://github.com/OpenVoiceOS/ovos-stt-server/tree/V0.0.2a5) (2023-05-05)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/V0.0.2a4...V0.0.2a5)
+
+## [V0.0.2a4](https://github.com/OpenVoiceOS/ovos-stt-server/tree/V0.0.2a4) (2023-05-05)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/afb94a25f646ab2a9f90a35f3914bc301067b289...V0.0.2a4)
 
 
 
