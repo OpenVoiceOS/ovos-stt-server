@@ -12,7 +12,7 @@ shared helper `ovos_stt_http_server.audio_utils.multipart_audio_to_audiodata`:
 `pydub` is an optional dependency — install via the `[audio]` extra:
 
 ```bash
-pip install ovos-stt-http-server[audio]
+pip install --pre "ovos-stt-http-server[audio]"
 ```
 
 If a non-WAV upload arrives and `pydub` is not installed, the server

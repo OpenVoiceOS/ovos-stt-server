@@ -8,7 +8,7 @@ is a separate OVOS STT plugin.  Build a custom image by layering a plugin on top
 ```dockerfile
 FROM ghcr.io/openvoiceos/ovos-stt-http-server:dev
 
-RUN pip install --no-cache-dir ovos-stt-plugin-fasterwhisper
+RUN pip install --no-cache-dir --pre ovos-stt-plugin-fasterwhisper
 
 COPY config/mycroft.conf /config/mycroft/mycroft.conf
 
@@ -78,13 +78,15 @@ Run with `docker compose up` (Compose merges the override automatically).
 
 ## MCP / UTCP extras
 
-The server exposes a UTCP tool manifest at `GET /utcp` with no extra dependencies.
+The server publishes a UTCP manual at `GET /utcp` with no extra dependencies.
 
-For MCP (streamable-HTTP, compatible with Claude Desktop and claude-code), install
-the optional extra:
+To give AI agents the MCP `transcribe` tool, install the extra and add
+`--mcp` to the command:
 
 ```dockerfile
-RUN pip install --no-cache-dir "ovos-stt-http-server[mcp]"
+RUN pip install --no-cache-dir --pre "ovos-stt-http-server[mcp]"
+CMD ["--engine", "ovos-stt-plugin-fasterwhisper", "--mcp"]
 ```
 
-and pass `--mcp` when starting the server to mount the `/mcp` endpoint.
+The endpoint is then `http://<host>:9666/mcp`. See [ai-agents.md](ai-agents.md)
+to connect a client.

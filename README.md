@@ -13,7 +13,7 @@ to offload transcription from an OVOS device, or point existing tooling at the
 - [Configuration](#configuration)
 - [Usage](#usage)
 - [HTTP API](#http-api)
-- [AI Agent Integration](#ai-agent-integration): MCP & UTCP
+- [AI agent integration](#ai-agent-integration): MCP & UTCP
 - [Vendor-compatible endpoints](#vendor-compatible-endpoints)
 - [Docker](#docker)
 - [Documentation](#documentation)
@@ -23,21 +23,21 @@ to offload transcription from an OVOS device, or point existing tooling at the
 ## Install
 
 ```bash
-pip install ovos-stt-http-server
+pip install --pre ovos-stt-http-server
 ```
 
 The server only hosts plugins. Install at least one STT plugin alongside it:
 
 ```bash
-pip install ovos-stt-plugin-fasterwhisper
+pip install --pre ovos-stt-plugin-fasterwhisper
 ```
 
 Optional extras:
 
 | Extra | Installs | Enables |
 |-------|----------|---------|
-| `mcp` | `pip install "ovos-stt-http-server[mcp]"` | embedded [MCP](#mcp--model-context-protocol) server at `/mcp` (requires `--mcp` flag) |
-| `audio` | `pip install "ovos-stt-http-server[audio]"` | non-WAV audio decoding (`pydub`) for the vendor-compat routers |
+| `mcp` | `pip install --pre "ovos-stt-http-server[mcp]"` | embedded [MCP](docs/ai-agents.md) server at `/mcp` (requires `--mcp` flag) |
+| `audio` | `pip install --pre "ovos-stt-http-server[audio]"` | non-WAV audio decoding (`pydub`) for the vendor-compat routers |
 
 ## Configuration
 
@@ -133,110 +133,23 @@ vocabulary corrections. See
 [docs/transformers.md](docs/transformers.md) for when to run transformers
 server-side vs on-device and how to avoid double-processing.
 
-## AI Agent Integration
+## AI agent integration
 
-### MCP: Model Context Protocol
-
-Install the optional extra and start the server with `--mcp` to expose it as an
-MCP tool provider:
+Start the server with `--mcp` to give AI agents a `transcribe` tool over the
+Model Context Protocol. This needs the `mcp` extra:
 
 ```bash
-pip install "ovos-stt-http-server[mcp]"
+pip install --pre "ovos-stt-http-server[mcp]"
 ovos-stt-server --engine ovos-stt-plugin-fasterwhisper --mcp
+claude mcp add --transport http ovos-stt http://localhost:8080/mcp
 ```
 
-Installing the `mcp` extra alone does **not** mount the endpoint — the flag is
-required. With `--mcp` set, the server mounts an MCP endpoint at `/mcp` using
-the streamable-HTTP transport (compatible with both the legacy SSE path
-`/mcp/sse` and the newer `POST /mcp` format). If `--mcp` is passed without the
-extra installed, the server logs a warning and starts without `/mcp`.
+Every server also publishes a UTCP manual at `GET /utcp`, so UTCP clients can
+call `/stt/json`, `/lang_detect` and `/status` directly.
 
-#### Connecting an MCP client
-
-##### Claude Desktop / claude-code (`claude_desktop_config.json`)
-
-```json
-{
-  "mcpServers": {
-    "ovos-stt": {
-      "transport": "http",
-      "url": "http://localhost:8080/mcp"
-    }
-  }
-}
-```
-
-##### ovos-tool-adapters persona JSON
-
-```json
-{
-  "toolboxes": ["ovos-mcp-toolbox"],
-  "ovos-mcp-toolbox": {
-    "transport": "http",
-    "url": "http://localhost:8080/mcp",
-    "timeout": 30
-  }
-}
-```
-
-#### Available MCP tool
-
-| Tool | Description |
-|---|---|
-| `transcribe` | Transcribe PCM audio to text. Accepts `audio_b64` (base64 PCM) or `audio_path` (server-side file path), plus `lang`, `sample_rate`, `sample_width`. |
-
-Example call (Python MCP client):
-
-```python
-import asyncio, base64
-from mcp.client.streamable_http import streamablehttp_client
-from mcp import ClientSession
-
-async def main():
-    async with streamablehttp_client("http://localhost:8080/mcp") as (r, w, _):
-        async with ClientSession(r, w) as session:
-            await session.initialize()
-            audio_b64 = base64.b64encode(open("speech.pcm", "rb").read()).decode()
-            result = await session.call_tool("transcribe", {
-                "audio_b64": audio_b64,
-                "lang": "en-us",
-            })
-            print(result.content[0].text)
-
-asyncio.run(main())
-```
-
-### UTCP: Universal Tool Calling Protocol
-
-No extra dependencies are required. Every running server exposes a UTCP manual at:
-
-```
-GET /utcp
-```
-
-The response is a UTCP-1.0 JSON document describing the `stt`, `lang_detect`, and
-`status` tools so any UTCP client can discover and invoke them without separate
-documentation. The `url` fields use the server's actual base URL, so the manual
-is correct even behind a reverse proxy.
-
-Register a UTCP client's provider config at `/utcp`:
-
-```json
-{
-  "toolboxes": ["ovos-utcp-toolbox"],
-  "ovos-utcp-toolbox": {
-    "utcp_config": {
-      "tool_providers": [
-        {
-          "name": "ovos-stt",
-          "provider_type": "http",
-          "url": "http://localhost:8080/utcp"
-        }
-      ]
-    }
-  }
-}
-```
+[docs/ai-agents.md](docs/ai-agents.md) gives recipes for Claude Code, Claude
+Desktop, OVOS agents and UTCP clients, the tool reference, and deployment
+notes.
 
 ## Vendor-compatible endpoints
 
@@ -275,7 +188,7 @@ Any plugin can be served with a small Dockerfile:
 ```dockerfile
 FROM python:3.11-slim
 
-RUN pip install --no-cache-dir \
+RUN pip install --no-cache-dir --pre \
     ovos-stt-http-server \
     ovos-stt-plugin-fasterwhisper
 
@@ -301,6 +214,7 @@ Each plugin can ship its own Dockerfile in its repository using
 | [docs/api-compatibility.md](docs/api-compatibility.md) | Vendor routers: prefixes, endpoints, clients |
 | [docs/audio-formats.md](docs/audio-formats.md) | Accepted audio encodings and conversion |
 | [docs/transformers.md](docs/transformers.md) | Audio/utterance transformer plugins around transcription |
+| [docs/ai-agents.md](docs/ai-agents.md) | MCP and UTCP for AI agents |
 | [docs/wyoming-integration.md](docs/wyoming-integration.md) | Home Assistant Voice / Wyoming bridge |
 | [docs/voice-pihole.md](docs/voice-pihole.md) | DNS-redirect + reverse-proxy recipes per vendor |
 
