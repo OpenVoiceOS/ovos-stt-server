@@ -16,16 +16,14 @@ Then point the SDK at the server::
     client = OpenAI(api_key="ignored", base_url="http://localhost:8080/openai/v1")
     result = client.audio.transcriptions.create(file=audio_bytes, model="whisper-1")
 """
-import io
 import time
-import wave
 from typing import List, Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 
-from ovos_plugin_manager.utils.audio import AudioData
+from ovos_stt_http_server.audio_utils import upload_to_audio_data
 
 
 
@@ -63,37 +61,6 @@ class VerboseTranscriptionResponse(BaseModel):
     text: str
     segments: List[TranscriptionSegment] = Field(default_factory=list)
     words: List[dict] = Field(default_factory=list)
-
-
-# ---------------------------------------------------------------------------
-# Audio helpers
-# ---------------------------------------------------------------------------
-
-def _audio_data_from_upload(file_bytes: bytes, sample_rate: int = 16000, sample_width: int = 2) -> AudioData:
-    """Convert uploaded file bytes to an :class:`AudioData` instance.
-
-    Tries to parse the bytes as a WAV container first so that sample-rate and
-    sample-width are extracted automatically.  Falls back to the supplied
-    defaults (16 kHz, 16-bit PCM) for raw/non-WAV formats.
-
-    Args:
-        file_bytes: Raw bytes from the multipart upload.
-        sample_rate: Fallback sample rate when WAV metadata is unavailable.
-        sample_width: Fallback sample width (bytes) when WAV metadata is
-            unavailable.
-
-    Returns:
-        AudioData suitable for passing to ``model.process_audio``.
-    """
-    try:
-        buf = io.BytesIO(file_bytes)
-        with wave.open(buf, "r") as wf:
-            sample_rate = wf.getframerate()
-            sample_width = wf.getsampwidth()
-            file_bytes = wf.readframes(wf.getnframes())
-    except Exception:
-        pass  # not a WAV — use raw bytes with defaults
-    return AudioData(file_bytes, sample_rate, sample_width)
 
 
 # ---------------------------------------------------------------------------
@@ -153,7 +120,7 @@ def make_openai_whisper_router(model, translator=None) -> APIRouter:
         if not file_bytes:
             raise HTTPException(status_code=400, detail="Empty audio file.")
 
-        audio = _audio_data_from_upload(file_bytes)
+        audio = upload_to_audio_data(file_bytes, file.filename or "")
         lang = language or "auto"
 
         start = time.time()

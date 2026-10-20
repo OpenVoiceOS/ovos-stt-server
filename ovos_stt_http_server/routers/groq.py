@@ -19,28 +19,15 @@ Then point the SDK at the server::
     client = Groq(api_key="ignored", base_url="http://localhost:8080")
     result = client.audio.transcriptions.create(file=audio, model="whisper-large-v3")
 """
-import io
 import time
 import uuid
-import wave
 from typing import Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, Header, UploadFile
 from fastapi.responses import JSONResponse, PlainTextResponse
 
-from ovos_plugin_manager.utils.audio import AudioData
+from ovos_stt_http_server.audio_utils import upload_to_audio_data
 
-
-def _audio_data_from_upload(file_bytes: bytes, sample_rate: int = 16000, sample_width: int = 2) -> AudioData:
-    """Wrap uploaded bytes in AudioData, reading WAV metadata when present."""
-    try:
-        with wave.open(io.BytesIO(file_bytes), "r") as wf:
-            sample_rate = wf.getframerate()
-            sample_width = wf.getsampwidth()
-            file_bytes = wf.readframes(wf.getnframes())
-    except Exception:
-        pass  # not a WAV — use raw bytes with defaults
-    return AudioData(file_bytes, sample_rate, sample_width)
 
 
 def make_groq_router(model) -> APIRouter:
@@ -83,7 +70,7 @@ def make_groq_router(model) -> APIRouter:
         if not file_bytes:
             raise HTTPException(status_code=400, detail="Empty audio file.")
 
-        audio = _audio_data_from_upload(file_bytes)
+        audio = upload_to_audio_data(file_bytes, file.filename or "")
         lang = language or "auto"
         transcript = model.process_audio(audio, lang) or ""
 
