@@ -148,7 +148,7 @@ Every server also publishes a UTCP manual at `GET /utcp`, so UTCP clients can
 call `/stt/json`, `/lang_detect` and `/status` directly.
 
 [docs/ai-agents.md](docs/ai-agents.md) gives recipes for Claude Code, Claude
-Desktop, OVOS agents and UTCP clients, the tool reference, and deployment
+Desktop, opencode, Mistral Vibe, OVOS agents and UTCP clients, the tool reference, and deployment
 notes.
 
 ## Vendor-compatible endpoints

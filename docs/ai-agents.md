@@ -5,13 +5,15 @@ This page shows how to give an AI agent speech-to-text with this server.
 ## Contents
 
 - [What you can do](#what-you-can-do)
-- [User stories](#user-stories)
-  - [I use Claude Code and want it to transcribe a recording](#i-use-claude-code-and-want-it-to-transcribe-a-recording)
-  - [I use Claude Desktop](#i-use-claude-desktop)
-  - [I build an OVOS agent and want STT as a tool](#i-build-an-ovos-agent-and-want-stt-as-a-tool)
-  - [I have a generic UTCP agent](#i-have-a-generic-utcp-agent)
-  - [I need to send audio that is not 16 kHz PCM](#i-need-to-send-audio-that-is-not-16-khz-pcm)
-  - [I run the server in a container with MCP on](#i-run-the-server-in-a-container-with-mcp-on)
+- [Start the server](#start-the-server)
+- [Let Claude Code transcribe a recording](#let-claude-code-transcribe-a-recording)
+- [Use the server from Claude Desktop](#use-the-server-from-claude-desktop)
+- [Let opencode transcribe a recording](#let-opencode-transcribe-a-recording)
+- [Let Mistral Vibe transcribe a recording](#let-mistral-vibe-transcribe-a-recording)
+- [Give an OVOS persona or agent a speech-to-text tool](#give-an-ovos-persona-or-agent-a-speech-to-text-tool)
+- [Let a UTCP agent discover the endpoints](#let-a-utcp-agent-discover-the-endpoints)
+- [Send audio that is not 16 kHz PCM](#send-audio-that-is-not-16-khz-pcm)
+- [Run the server in a container with MCP on](#run-the-server-in-a-container-with-mcp-on)
 - [Reference](#reference)
 - [Deployment](#deployment)
 - [Troubleshooting](#troubleshooting)
@@ -19,7 +21,7 @@ This page shows how to give an AI agent speech-to-text with this server.
 ## What you can do
 
 **MCP** (Model Context Protocol) is the protocol that Claude Code, Claude
-Desktop and most agent frameworks use to call tools. Start the server with
+Desktop, opencode, Mistral Vibe and most agent frameworks use to call tools. Start the server with
 `--mcp` and it gives agents one tool, `transcribe`, at `/mcp`. MCP needs the
 `mcp` extra.
 
@@ -32,9 +34,9 @@ needs no extra.
 The examples use the CLI default address, `http://localhost:8080`. Change it
 to the address of your server.
 
-## User stories
+## Start the server
 
-Every story starts from a running server with MCP on:
+Every task on this page uses a running server with MCP on:
 
 ```bash
 pip install --pre "ovos-stt-http-server[mcp]" ovos-stt-plugin-vosk
@@ -45,7 +47,7 @@ The outputs on this page come from the `ovos-stt-plugin-vosk` small English
 model and a synthetic voice saying "turn on the kitchen lights please". A
 better model gives a better transcript.
 
-### I use Claude Code and want it to transcribe a recording
+## Let Claude Code transcribe a recording
 
 You get a `transcribe` tool in Claude Code. You can then ask Claude to
 transcribe a file on your machine.
@@ -83,7 +85,7 @@ Claude sends the audio as base64 in `audio_b64`.
 If the list shows `✘ Failed to connect`, make sure that the server runs with
 `--mcp`. See [Troubleshooting](#troubleshooting).
 
-### I use Claude Desktop
+## Use the server from Claude Desktop
 
 You get the same `transcribe` tool in Claude Desktop.
 
@@ -110,7 +112,61 @@ address, add `"--allow-http"` to `args`, or put the server behind HTTPS. A
 Claude custom connector (Settings, Connectors) is for an MCP server on the
 internet. For a server on your machine or your LAN, use `mcp-remote`.
 
-### I build an OVOS agent and want STT as a tool
+## Let opencode transcribe a recording
+
+You get `transcribe` in opencode.
+
+1. Start the server with `--mcp`.
+2. Add this entry to `opencode.json` in your project folder:
+
+   ```json
+   {
+     "$schema": "https://opencode.ai/config.json",
+     "mcp": {
+       "ovos-stt": {
+         "type": "remote",
+         "url": "http://localhost:8080/mcp",
+         "enabled": true
+       }
+     }
+   }
+   ```
+
+3. Check the connection:
+
+   ```console
+   $ opencode mcp list
+   ┌  MCP Servers
+   │
+   ●  ✓ ovos-stt connected
+   │      http://localhost:8080/mcp
+   │
+   └  1 server(s)
+   ```
+
+## Let Mistral Vibe transcribe a recording
+
+You get `transcribe` in Vibe.
+
+1. Start the server with `--mcp`.
+2. Add this entry to `~/.vibe/config.toml`:
+
+   ```toml
+   [[mcp_servers]]
+   name = "ovos-stt"
+   transport = "streamable-http"
+   url = "http://localhost:8080/mcp"
+   ```
+
+   Write the entry in the file. Do not use `vibe mcp add` for this server: that
+   command sets OAuth login for an HTTP server, and the server does not use
+   OAuth.
+
+3. Start `vibe`. Vibe loads the tools of the server when it starts. It gives
+   each tool the server name as a prefix, and it changes each hyphen to `_`:
+   `ovos_stt_transcribe`.
+
+## Give an OVOS persona or agent a speech-to-text tool
 
 You give an OVOS persona or agent a speech-to-text tool through the
 [ovos-tool-adapters](https://github.com/OpenVoiceOS/ovos-tool-adapters)
@@ -131,9 +187,6 @@ The toolbox finds one tool, `transcribe`. A call with
 ```
 content='the on the kitchen light sleeve' is_error=False
 ```
-
-Both toolboxes need `ovos-tool-adapters` 0.1.9a1 or later. Older releases
-load no tools with `mcp` 2.x or with the utcp 1.x client.
 
 With UTCP, add this toolbox:
 
@@ -165,7 +218,7 @@ on the kitchen light sleeve
 `ovos_stt_lang_detect` takes raw PCM bytes in `body`, which a toolbox cannot
 send, so agents use `ovos_stt_stt` and `ovos_stt_status`.
 
-### I have a generic UTCP agent
+## Let a UTCP agent discover the endpoints
 
 You call the server from any UTCP 1.x client, with no MCP layer.
 
@@ -207,7 +260,7 @@ not base64 answers HTTP 400. The UTCP HTTP client accepts plain HTTP only for `l
 server at another address, put it behind HTTPS. See
 [Run behind a reverse proxy](#run-behind-a-reverse-proxy).
 
-### I need to send audio that is not 16 kHz PCM
+## Send audio that is not 16 kHz PCM
 
 The MCP `transcribe` tool decodes a WAV file with its own sample rate, sample
 width and channels. It reads all other bytes as raw PCM. For other formats,
@@ -254,7 +307,7 @@ The UTCP `stt` tool and `POST /stt/json` decode WAV files the same way. The
 raw `/stt` endpoint reads raw PCM only. Send it the output of
 `ffmpeg -i memo.mp3 -ar 16000 -ac 1 -f s16le memo.pcm`.
 
-### I run the server in a container with MCP on
+## Run the server in a container with MCP on
 
 You get the MCP endpoint from a container. Install the `mcp` extra in the
 image and give `--mcp` to the server:
@@ -403,12 +456,11 @@ which files exist. Do not give `/mcp` to clients that you do not trust.
 |---|---|---|
 | `/mcp` answers 404 | The server started without `--mcp`, or the `mcp` extra is not installed. | Run `pip install --pre "ovos-stt-http-server[mcp]"` and give `--mcp`. |
 | `/mcp/sse` answers 404 | The server has no SSE endpoint. | Use the streamable HTTP URL, `/mcp`. |
-| `transcribe` returns an empty string | The audio is not WAV or raw PCM at the given rate, or it has no speech. | Convert the audio with `ffmpeg`. See [I need to send audio that is not 16 kHz PCM](#i-need-to-send-audio-that-is-not-16-khz-pcm). |
+| `transcribe` returns an empty string | The audio is not WAV or raw PCM at the given rate, or it has no speech. | Convert the audio with `ffmpeg`. See [Send audio that is not 16 kHz PCM](#send-audio-that-is-not-16-khz-pcm). |
 | `unknown format: 3` | The WAV file holds float samples. | Convert it to a 16-bit WAV with `ffmpeg`. |
 | `unknown format: 65534` (Python 3.10 and 3.11) or `unknown extended format: 00000003-...` (Python 3.12 and later) | The WAV file has an extensible header with float or compressed samples, as ffmpeg writes for float audio with more than two channels. | Convert it to a 16-bit WAV with `ffmpeg`. |
 | `Provide either audio_b64 or audio_path` | The call has no audio. | Give one of the two arguments. |
 | `mcp-remote` prints `Non-HTTPS URLs are only allowed for localhost` | The URL uses plain HTTP to an address that is not `localhost`. | Add `--allow-http`, or use HTTPS. |
 | A UTCP client prints `URL must use HTTPS or be a literal loopback address` | The manual URL is plain HTTP to another host. | Put the server behind HTTPS. See [Run behind a reverse proxy](#run-behind-a-reverse-proxy). |
 | The OVOS MCP toolbox logs `too many values to unpack (expected 2, got 3)` | `mcp` 1.x is installed. | Install `mcp` 2 or later. |
-| The OVOS UTCP toolbox logs `No module named 'utcp.client'` | The `ovos-tool-adapters` release does not support UTCP 1.x. | Install ovos-tool-adapters 0.1.7a1 or later. |
 | `lang_detect` answers HTTP 501 | The STT plugin cannot detect the language, and no `--lang-engine` is set. | Start the server with a language-detection plugin, or give one language in `valid_langs`. |
