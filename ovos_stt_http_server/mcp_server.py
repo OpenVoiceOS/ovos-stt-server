@@ -164,18 +164,7 @@ def build_mcp_server(
             raw_bytes = base64.b64decode(audio_b64)
 
         audio = _to_audio_data(raw_bytes, sample_rate, sample_width)
-
-        if lang == "auto":
-            try:
-                detected_lang, _conf = model.detect_language(audio.frame_data)
-                lang = detected_lang
-            except Exception as e:
-                # engines without audio language detection fall back to
-                # their default language instead of failing the call
-                lang = getattr(model, "default_lang", None) or "en-us"
-                LOG.debug(f"[MCP] language detection unavailable ({e}); "
-                          f"falling back to {lang}")
-
+        # the container resolves "auto" the same way as for HTTP /stt
         result = model.process_audio(audio, lang)
         LOG.debug(f"[MCP] transcribe lang={lang} result={result!r}")
         return result or ""
