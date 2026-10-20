@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.28.0a1](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.28.0a1) (2026-10-20)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.27.12a2...0.28.0a1)
+
+**Merged pull requests:**
+
+- feat: add POST /stt/json for tool-calling clients [\#138](https://github.com/OpenVoiceOS/ovos-stt-server/pull/138) ([openvoiceos-bot](https://github.com/openvoiceos-bot))
+
 ## [0.27.12a2](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.27.12a2) (2026-10-20)
 
 [Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.27.12a1...0.27.12a2)
@@ -159,7 +167,6 @@
 **Closed issues:**
 
 - feat: expose STT via MCP + UTCP [\#74](https://github.com/OpenVoiceOS/ovos-stt-server/issues/74)
-- expose via UTCP and MCP [\#34](https://github.com/OpenVoiceOS/ovos-stt-server/issues/34)
 
 **Merged pull requests:**
 
@@ -247,7 +254,6 @@
 **Merged pull requests:**
 
 - Configure Renovate [\#36](https://github.com/OpenVoiceOS/ovos-stt-server/pull/36) ([renovate[bot]](https://github.com/apps/renovate))
-- Add CORS middleware for STT web services [\#35](https://github.com/OpenVoiceOS/ovos-stt-server/pull/35) ([suvanbanerjee](https://github.com/suvanbanerjee))
 
 ## [0.1.5a1](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.5a1) (2025-04-05)
 
