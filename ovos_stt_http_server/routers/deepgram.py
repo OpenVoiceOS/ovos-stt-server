@@ -11,6 +11,8 @@ from starlette.websockets import WebSocketState
 
 from ovos_plugin_manager.utils.audio import AudioData
 
+from ovos_stt_http_server.audio_utils import upload_to_audio_data
+
 
 class DeepgramWord(BaseModel):
     """A single word with timing in a Deepgram transcript."""
@@ -79,8 +81,7 @@ def make_deepgram_router(model) -> APIRouter:
             DeepgramResponse with transcription results.
         """
         audio_bytes = await request.body()
-        # Default 16kHz 16-bit mono
-        audio = AudioData(audio_bytes, 16000, 2)
+        audio = upload_to_audio_data(audio_bytes)
         start = time.time()
         transcript = model.process_audio(audio, language)
         duration = time.time() - start
