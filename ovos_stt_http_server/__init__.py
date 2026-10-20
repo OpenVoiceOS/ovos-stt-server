@@ -368,10 +368,10 @@ def create_app(stt_plugin: str, lang_plugin: str = None, multi: bool = False,
         return {"lang": lang, "conf": prob}
 
     from ovos_stt_http_server.routers.chromium import make_chromium_router
-    from ovos_stt_http_server.routers.utcp import make_utcp_router
+    from ovos_stt_http_server.utcp import make_utcp_router
     from ovos_stt_http_server.routers.deepgram import make_deepgram_router
     app.include_router(make_chromium_router(model))
-    app.include_router(make_utcp_router())
+    app.include_router(make_utcp_router(model))
     # vosk-webrtc needs the optional aiortc dependency
     try:
         from ovos_stt_http_server.routers.vosk_webrtc import make_vosk_webrtc_router
@@ -411,8 +411,8 @@ def create_app(stt_plugin: str, lang_plugin: str = None, multi: bool = False,
     # Mount MCP server only when explicitly requested via --mcp.
     if enable_mcp:
         try:
-            from ovos_stt_http_server.mcp_server import mount_mcp_on_fastapi
-            mount_mcp_on_fastapi(app, model)
+            from ovos_stt_http_server.mcp_server import mount_mcp
+            mount_mcp(app, model)
         except ImportError:
             LOG.warning("MCP was requested (--mcp) but the optional dependency "
                         "is not installed; skipping MCP server. "

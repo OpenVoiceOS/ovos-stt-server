@@ -56,7 +56,7 @@ def _extract_text(content_list) -> str:
 
 
 # ---------------------------------------------------------------------------
-# build_mcp_server
+# build_mcp
 # ---------------------------------------------------------------------------
 
 class TestBuildMcpServer:
@@ -66,41 +66,41 @@ class TestBuildMcpServer:
 
     def test_returns_fastmcp_instance(self):
         from fastmcp import FastMCP
-        from ovos_stt_http_server.mcp_server import build_mcp_server
-        mcp = build_mcp_server(_make_model())
+        from ovos_stt_http_server.mcp_server import build_mcp
+        mcp = build_mcp(_make_model())
         assert isinstance(mcp, FastMCP)
 
     def test_transcribe_tool_registered(self):
-        from ovos_stt_http_server.mcp_server import build_mcp_server
-        mcp = build_mcp_server(_make_model())
+        from ovos_stt_http_server.mcp_server import build_mcp
+        mcp = build_mcp(_make_model())
         tool_names = [t.name for t in _get_tools(mcp)]
         assert "transcribe" in tool_names
 
     def test_transcribe_tool_has_description(self):
-        from ovos_stt_http_server.mcp_server import build_mcp_server
-        mcp = build_mcp_server(_make_model())
+        from ovos_stt_http_server.mcp_server import build_mcp
+        mcp = build_mcp(_make_model())
         transcribe = next(t for t in _get_tools(mcp) if t.name == "transcribe")
         assert transcribe.description
 
     def test_transcribe_tool_input_schema_has_audio_fields(self):
-        from ovos_stt_http_server.mcp_server import build_mcp_server
-        mcp = build_mcp_server(_make_model())
+        from ovos_stt_http_server.mcp_server import build_mcp
+        mcp = build_mcp(_make_model())
         transcribe = next(t for t in _get_tools(mcp) if t.name == "transcribe")
         props = transcribe.parameters.get("properties", {})
         # at least one of the two audio input fields must be present
         assert "audio_b64" in props or "audio_path" in props
 
     def test_transcribe_tool_has_lang_param(self):
-        from ovos_stt_http_server.mcp_server import build_mcp_server
-        mcp = build_mcp_server(_make_model())
+        from ovos_stt_http_server.mcp_server import build_mcp
+        mcp = build_mcp(_make_model())
         transcribe = next(t for t in _get_tools(mcp) if t.name == "transcribe")
         props = transcribe.parameters.get("properties", {})
         assert "lang" in props
 
     def test_custom_server_name_accepted(self):
         from fastmcp import FastMCP
-        from ovos_stt_http_server.mcp_server import build_mcp_server
-        mcp = build_mcp_server(_make_model(), server_name="my-stt")
+        from ovos_stt_http_server.mcp_server import build_mcp
+        mcp = build_mcp(_make_model(), server_name="my-stt")
         assert isinstance(mcp, FastMCP)
 
 
@@ -114,8 +114,8 @@ class TestTranscribeTool:
         import fastmcp
 
     def _call(self, model, **kwargs):
-        from ovos_stt_http_server.mcp_server import build_mcp_server
-        mcp = build_mcp_server(model)
+        from ovos_stt_http_server.mcp_server import build_mcp
+        mcp = build_mcp(model)
         result = asyncio.run(mcp.call_tool("transcribe", kwargs))
         return _extract_text(result.content)
 
@@ -141,9 +141,9 @@ class TestTranscribeTool:
         model.detect_language.assert_not_called()
 
     def test_transcribe_no_audio_raises(self):
-        from ovos_stt_http_server.mcp_server import build_mcp_server
+        from ovos_stt_http_server.mcp_server import build_mcp
         model = _make_model()
-        mcp = build_mcp_server(model)
+        mcp = build_mcp(model)
         # Calling with neither audio_b64 nor audio_path should raise
         with pytest.raises(Exception):
             asyncio.run(mcp.call_tool("transcribe", {}))
@@ -169,9 +169,9 @@ class TestTranscribeTool:
         # still pass (same model mock), but we verify process_audio is called
         # with bytes matching the file content, not the b64.
         b64_data = base64.b64encode(b"\x02" * 100).decode()
-        from ovos_stt_http_server.mcp_server import build_mcp_server
+        from ovos_stt_http_server.mcp_server import build_mcp
         from ovos_plugin_manager.utils.audio import AudioData
-        mcp = build_mcp_server(model)
+        mcp = build_mcp(model)
         asyncio.run(mcp.call_tool("transcribe", {
             "audio_b64": b64_data,
             "audio_path": str(audio_file),
@@ -182,9 +182,9 @@ class TestTranscribeTool:
 
     def test_transcribe_invalid_base64_raises(self):
         """Passing a non-base64 string for audio_b64 raises an exception."""
-        from ovos_stt_http_server.mcp_server import build_mcp_server
+        from ovos_stt_http_server.mcp_server import build_mcp
         model = _make_model()
-        mcp = build_mcp_server(model)
+        mcp = build_mcp(model)
         with pytest.raises(Exception):
             asyncio.run(mcp.call_tool("transcribe", {
                 "audio_b64": "!!!not-valid-base64!!!",
@@ -193,9 +193,9 @@ class TestTranscribeTool:
 
     def test_transcribe_audio_path_not_found_raises(self):
         """A non-existent audio_path must raise FileNotFoundError (or similar)."""
-        from ovos_stt_http_server.mcp_server import build_mcp_server
+        from ovos_stt_http_server.mcp_server import build_mcp
         model = _make_model()
-        mcp = build_mcp_server(model)
+        mcp = build_mcp(model)
         with pytest.raises(Exception):
             asyncio.run(mcp.call_tool("transcribe", {
                 "audio_path": "/tmp/__nonexistent_ovos_test_file__.pcm",
@@ -205,7 +205,7 @@ class TestTranscribeTool:
 
 
 # ---------------------------------------------------------------------------
-# mount_mcp_on_fastapi
+# mount_mcp
 # ---------------------------------------------------------------------------
 
 class TestMountMcpOnFastapi:
@@ -215,10 +215,10 @@ class TestMountMcpOnFastapi:
 
     def test_mount_does_not_raise(self):
         from fastapi import FastAPI
-        from ovos_stt_http_server.mcp_server import mount_mcp_on_fastapi
+        from ovos_stt_http_server.mcp_server import mount_mcp
         app = FastAPI()
         model = _make_model()
-        mount_mcp_on_fastapi(app, model, path="/mcp")
+        mount_mcp(app, model, path="/mcp")
 
     def test_import_error_without_mcp(self, monkeypatch):
         """When mcp is not installed, _require_mcp() raises ImportError."""
@@ -228,20 +228,20 @@ class TestMountMcpOnFastapi:
             mod._require_mcp()
 
     def test_build_mcp_server_raises_when_mcp_unavailable(self, monkeypatch):
-        """build_mcp_server() raises ImportError when _MCP_AVAILABLE is False."""
+        """build_mcp() raises ImportError when _MCP_AVAILABLE is False."""
         import ovos_stt_http_server.mcp_server as mod
         monkeypatch.setattr(mod, "_MCP_AVAILABLE", False)
         with pytest.raises(ImportError):
-            mod.build_mcp_server(_make_model())
+            mod.build_mcp(_make_model())
 
     def test_mount_mcp_on_fastapi_raises_when_mcp_unavailable(self, monkeypatch):
-        """mount_mcp_on_fastapi() raises ImportError when _MCP_AVAILABLE is False."""
+        """mount_mcp() raises ImportError when _MCP_AVAILABLE is False."""
         from fastapi import FastAPI
         import ovos_stt_http_server.mcp_server as mod
         monkeypatch.setattr(mod, "_MCP_AVAILABLE", False)
         app = FastAPI()
         with pytest.raises(ImportError):
-            mod.mount_mcp_on_fastapi(app, _make_model())
+            mod.mount_mcp(app, _make_model())
 
 
 # ---------------------------------------------------------------------------
@@ -301,7 +301,7 @@ class TestCreateAppMcpDegradation:
         assert isinstance(app, FastAPI)
 
     def test_create_app_mcp_import_error_caught(self):
-        """create_app(enable_mcp=True) catches ImportError from mount_mcp_on_fastapi gracefully.
+        """create_app(enable_mcp=True) catches ImportError from mount_mcp gracefully.
 
         Patches the mcp_server submodule in sys.modules so the ``from … import``
         inside create_app triggers an ImportError through the module's own guard.
@@ -310,7 +310,7 @@ class TestCreateAppMcpDegradation:
         import ovos_stt_http_server.mcp_server as mcp_mod
 
         with patch("ovos_stt_http_server.ModelContainer") as mc, \
-             patch.object(mcp_mod, "mount_mcp_on_fastapi", side_effect=ImportError("no mcp")):
+             patch.object(mcp_mod, "mount_mcp", side_effect=ImportError("no mcp")):
             mc.return_value = _make_model()
             # Force create_app to use the patched module by flushing its cache entry.
             saved = sys.modules.get("ovos_stt_http_server.mcp_server")
@@ -356,9 +356,9 @@ class TestTranscribeAudioFiles:
         return b"".join(s.to_bytes(2, "little", signed=True) for s in samples)
 
     def _received(self, **kwargs):
-        from ovos_stt_http_server.mcp_server import build_mcp_server
+        from ovos_stt_http_server.mcp_server import build_mcp
         model = _make_model("decoded")
-        asyncio.run(build_mcp_server(model).call_tool("transcribe", {"lang": "en-us", **kwargs}))
+        asyncio.run(build_mcp(model).call_tool("transcribe", {"lang": "en-us", **kwargs}))
         audio = model.process_audio.call_args[0][0]
         return audio.frame_data, audio.sample_rate, audio.sample_width
 
@@ -482,9 +482,9 @@ class TestTranscribeAutoLanguage:
         return srv.ModelContainer("fake-plugin")
 
     def _mcp(self, container, **kwargs):
-        from ovos_stt_http_server.mcp_server import build_mcp_server
+        from ovos_stt_http_server.mcp_server import build_mcp
         audio_b64 = base64.b64encode(b"\x00" * 320).decode()
-        result = asyncio.run(build_mcp_server(container).call_tool(
+        result = asyncio.run(build_mcp(container).call_tool(
             "transcribe", {"audio_b64": audio_b64, **kwargs}))
         return _extract_text(result.content)
 
@@ -527,3 +527,54 @@ class TestMissingExtraWarning:
         output = run.stdout + run.stderr
         assert "WARNING" in output
         assert 'pip install "ovos-stt-http-server[mcp]"' in output
+
+
+class TestDeprecatedNames:
+    @pytest.fixture(autouse=True)
+    def _check_mcp(self):
+        import fastmcp
+
+    def test_server_name(self):
+        from ovos_stt_http_server.mcp_server import build_mcp
+        assert build_mcp(_make_model()).name == "ovos-stt"
+
+    def test_build_mcp_server_warns_and_builds(self):
+        from ovos_stt_http_server.mcp_server import build_mcp_server
+        from ovos_stt_http_server.version import VERSION_MAJOR, VERSION_MINOR
+        with pytest.warns(DeprecationWarning, match=f"removed in {VERSION_MAJOR}.{VERSION_MINOR + 1}.0"):
+            mcp = build_mcp_server(_make_model(), server_name="legacy")
+        assert mcp.name == "legacy"
+        assert [t.name for t in _get_tools(mcp)] == ["transcribe"]
+
+    def test_mount_mcp_on_fastapi_warns_and_mounts(self):
+        from fastapi import FastAPI
+        from ovos_stt_http_server.mcp_server import mount_mcp_on_fastapi
+        app = FastAPI()
+        with pytest.warns(DeprecationWarning, match="use mount_mcp"):
+            mount_mcp_on_fastapi(app, _make_model())
+        assert "/mcp" in {r.path for r in app.routes}
+
+
+class TestMountPath:
+    """The MCP transport answers at the mount path itself, not only below it."""
+
+    INIT = {"jsonrpc": "2.0", "id": 1, "method": "initialize",
+            "params": {"protocolVersion": "2025-06-18", "capabilities": {},
+                       "clientInfo": {"name": "test", "version": "1"}}}
+    HEADERS = {"Accept": "application/json, text/event-stream"}
+
+    @pytest.fixture(autouse=True)
+    def _check_mcp(self):
+        import fastmcp
+
+    @pytest.mark.parametrize("url", ["/mcp", "/mcp/"])
+    def test_initialize_reaches_the_transport_without_a_redirect(self, url):
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        from ovos_stt_http_server.mcp_server import mount_mcp
+        app = FastAPI()
+        mount_mcp(app, _make_model())
+        with TestClient(app) as client:
+            resp = client.post(url, json=self.INIT, headers=self.HEADERS, follow_redirects=False)
+        assert resp.status_code == 200
+        assert '"serverInfo"' in resp.text and '"ovos-stt"' in resp.text
