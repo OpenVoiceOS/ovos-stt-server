@@ -23,6 +23,7 @@ from ovos_plugin_manager.stt import load_stt_plugin
 from ovos_plugin_manager.transformer_services import (AudioTransformersService,
                                                       UtteranceTransformersService)
 from ovos_plugin_manager.utils.audio import AudioFile, AudioData
+from ovos_spec_tools import lang_matches
 from ovos_utils.log import LOG
 from pydantic import BaseModel, Field
 from starlette.requests import Request
@@ -153,6 +154,7 @@ class ModelContainer(TransformerPipelines):
             # a detector that answers "auto" resolved nothing
             lang = self.engine.lang
         lang = _reject_unresolved_lang(lang)
+        _reject_unsupported_lang(lang, self.engine.available_languages)
         utterance = self.engine.execute(audio, language=lang) or ""
         return self.transform_utterance(utterance, lang), lang
 
@@ -169,6 +171,31 @@ class UnresolvedLanguage(ValueError):
     answering 500 rather than telling the caller its request was wrong and
     leaking an internal message.
     """
+
+
+class InvalidInput(ValueError):
+    """The request carries audio or a language the engine cannot use.
+
+    A dedicated class for the same reason as :class:`UnresolvedLanguage`: the
+    handler that answers 400 must not catch every ValueError, so a plugin that
+    fails on its own account keeps answering 500.
+    """
+
+
+# `lang_distance` scores a different language 80 or more and a different script
+# of one language (zh-TW against zh) 54 to 64, so 79 separates the two. The
+# default of 10 refuses zh-TW for an engine that lists zh, which engines accept.
+_SAME_LANGUAGE_MAX_DISTANCE = 79
+
+
+def _reject_unsupported_lang(lang: str, supported) -> None:
+    """Raise when the engine advertises languages and none is this one's language.
+
+    An engine that advertises no languages is not checked.
+    """
+    if supported and not any(lang_matches(lang, tag, max_distance=_SAME_LANGUAGE_MAX_DISTANCE)
+                             for tag in supported):
+        raise InvalidInput(f"the language '{lang}' is not one this STT engine supports.")
 
 
 def _reject_unresolved_lang(lang: Optional[str]) -> str:
@@ -280,6 +307,7 @@ class MultiModelContainer(TransformerPipelines):
             # a detector that answers "auto" resolved nothing
             lang = self._configured_lang()
         lang = _reject_unresolved_lang(lang)
+        _reject_unsupported_lang(lang, self.plugin_class.available_languages)
         engine = self.get_engine(lang)
         utterance = engine.execute(audio, language=lang) or ""
         return self.transform_utterance(utterance, lang), lang
@@ -321,8 +349,9 @@ def create_app(stt_plugin: str, lang_plugin: str = None, multi: bool = False,
     else:
         model = ModelContainer(stt_plugin, lang_plugin)
 
+    @app.exception_handler(InvalidInput)
     @app.exception_handler(UnresolvedLanguage)
-    async def unresolved_language(request: Request, exc: UnresolvedLanguage):
+    async def unresolved_language(request: Request, exc: ValueError):
         """Answer 400 when the request carries no language the engine can use.
 
         Every vendor-compat router treats the language as optional, because

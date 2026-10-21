@@ -97,7 +97,9 @@ The native API is unauthenticated. Audio is sent as the raw request body.
 | `sample_rate` | `16000` | Audio sample rate in Hz |
 | `sample_width` | `2` | Sample width in bytes (`2` = int16) |
 
-The body must be **raw PCM** (16-bit signed, mono). Example with a WAV file
+The body must be **raw PCM** (16-bit signed, mono). The server answers HTTP 400
+with a message when `lang` names a language the engine does not list in
+`available_languages`. Example with a WAV file
 decoded to PCM on the fly:
 
 ```bash

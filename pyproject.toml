@@ -26,6 +26,7 @@ dependencies = [
     "fastapi>=0.115",
     "uvicorn>=0.34",
     "ovos-utils>=0.0.32",
+    "ovos-spec-tools>=1.16.0a1",
     # FastAPI needs python-multipart at runtime to service the multipart/form-data
     # routes (whisper-cpp inference, wit.ai); without it those routers fail to load.
     "python-multipart",
