@@ -37,7 +37,7 @@ audio = ["pydub"]
 # under test/integration/*_sdk_live.py actually run in CI instead of being
 # silently skipped by pytest.importorskip.
 test = [
-    "pytest",
+    "pytest", "numpy",
     # httpx needs a ceiling. With prerelease resolution allowed, a bare "httpx"
     # resolves to 1.0.dev6, which starlette's TestClient cannot use
     # ("module 'httpx' has no attribute 'BaseTransport'"), and the route tests
