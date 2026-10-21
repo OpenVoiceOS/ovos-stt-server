@@ -470,7 +470,7 @@ class TestTranscribeAutoLanguage:
         class PortugueseEngine:
             """An engine configured for pt-pt, with no language detection."""
             lang = "pt-pt"
-            available_languages = {"pt-pt"}
+            available_languages = {"pt-pt", "fr-fr"}
 
             def __init__(self, config=None):
                 pass

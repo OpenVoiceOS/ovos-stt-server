@@ -10,7 +10,7 @@ import ovos_stt_http_server as srv
 
 class FakeSTT:
     lang = "pt-pt"
-    available_languages: ClassVar[set] = {"en", "de", "pt-pt"}
+    available_languages: ClassVar[set] = {"en", "de", "fr", "pt-pt"}
 
     def __init__(self, config=None):
         self.config = config or {}
