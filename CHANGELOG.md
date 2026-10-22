@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.28.3a1](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.28.3a1) (2026-10-22)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.28.2a1...0.28.3a1)
+
+**Merged pull requests:**
+
+- fix: answer 400 for audio that ends inside a sample [\#150](https://github.com/OpenVoiceOS/ovos-stt-server/pull/150) ([openvoiceos-bot](https://github.com/openvoiceos-bot))
+
 ## [0.28.2a1](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.28.2a1) (2026-10-20)
 
 [Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.28.1a2...0.28.2a1)
@@ -245,25 +253,21 @@
 
 [Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a7...0.1.5a8)
 
-**Merged pull requests:**
-
-- modernize: dont write audio to tmp file [\#45](https://github.com/OpenVoiceOS/ovos-stt-server/pull/45) ([JarbasAl](https://github.com/JarbasAl))
-
 ## [0.1.5a7](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.5a7) (2025-12-19)
 
-[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a5...0.1.5a7)
-
-## [0.1.5a5](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.5a5) (2025-12-18)
-
-[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a3...0.1.5a5)
-
-## [0.1.5a3](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.5a3) (2025-12-18)
-
-[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a4...0.1.5a3)
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a4...0.1.5a7)
 
 ## [0.1.5a4](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.5a4) (2025-12-18)
 
-[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a2...0.1.5a4)
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a3...0.1.5a4)
+
+## [0.1.5a3](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.5a3) (2025-12-18)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a5...0.1.5a3)
+
+## [0.1.5a5](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.5a5) (2025-12-18)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-stt-server/compare/0.1.5a2...0.1.5a5)
 
 ## [0.1.5a2](https://github.com/OpenVoiceOS/ovos-stt-server/tree/0.1.5a2) (2025-12-18)
 
