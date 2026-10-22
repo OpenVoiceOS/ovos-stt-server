@@ -1,0 +1,28 @@
+services:
+  ovos-stt:
+    build: .
+    image: ghcr.io/openvoiceos/ovos-stt-http-server:dev
+    ports:
+      - "8080:9666"
+    volumes:
+      - ./config:/config/mycroft
+    environment:
+      # The proxy plugin reads its upstream URLs from the "urls" key in
+      # config/mycroft.conf. There is no environment-variable override;
+      # edit that file to point at a private server.
+      XDG_CONFIG_HOME: /config
+    command:
+      - "--engine"
+      - "ovos-stt-plugin-server"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "9666"
+    healthcheck:
+      test: ["CMD", "python3", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:9666/status')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped

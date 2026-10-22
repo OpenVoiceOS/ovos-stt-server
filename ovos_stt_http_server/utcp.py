@@ -1,0 +1,226 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+"""UTCP manual router for ovos-stt-http-server.
+
+Serves a ``GET /utcp`` endpoint that returns a UTCP-1.0 *manual* — a
+self-describing JSON document listing every tool (endpoint) this server
+exposes so that UTCP clients can discover and call them without any
+out-of-band documentation.
+
+No extra dependencies are required; the endpoint is always available.
+"""
+from __future__ import annotations
+
+from typing import Any, Dict
+
+from fastapi import APIRouter
+from fastapi.responses import JSONResponse
+from starlette.requests import Request
+
+from ovos_stt_http_server.version import __version__
+
+# the UTCP specification version this manual follows
+_UTCP_SPEC_VERSION = "1.0.0"
+
+
+def _stt_tool(base_url: str) -> Dict[str, Any]:
+    return {
+        "name": "stt",
+        "description": (
+            "Transcribe speech to text. Send the audio as base64 in body.audio_b64: "
+            "a WAV file, or raw 16-bit mono PCM at body.sample_rate. "
+            "Returns {text, lang}."
+        ),
+        "inputs": {
+            "type": "object",
+            "properties": {
+                "body": {
+                    "type": "object",
+                    "description": "JSON request body for POST /stt/json.",
+                    "properties": {
+                        "audio_b64": {
+                            "type": "string",
+                            "description": "Base64 of a WAV file or of raw PCM audio.",
+                        },
+                        "lang": {
+                            "type": "string",
+                            "description": "BCP-47 language tag, or 'auto' to resolve it. "
+                                           "Default: the server's configured language.",
+                        },
+                        "sample_rate": {
+                            "type": "integer",
+                            "default": 16000,
+                            "description": "Sample rate of raw PCM in Hz. A WAV file uses its own.",
+                        },
+                        "sample_width": {
+                            "type": "integer",
+                            "default": 2,
+                            "description": "Bytes per sample of raw PCM. A WAV file uses its own.",
+                        },
+                    },
+                    "required": ["audio_b64"],
+                },
+            },
+            "required": ["body"],
+        },
+        "outputs": {
+            "type": "object",
+            "properties": {
+                "text": {"type": "string", "description": "Transcribed text."},
+                "lang": {"type": "string", "description": "Language the engine transcribed in."},
+            },
+        },
+        "tags": ["stt", "speech-to-text", "ovos"],
+        "average_response_size": 256,
+        "tool_call_template": {
+            "name": "ovos_stt",
+            "call_template_type": "http",
+            "http_method": "POST",
+            "url": f"{base_url}/stt/json",
+            "content_type": "application/json",
+            "body_field": "body",
+        },
+    }
+
+
+def _lang_detect_tool(base_url: str) -> Dict[str, Any]:
+    return {
+        "name": "lang_detect",
+        "description": (
+            "Detect the spoken language in raw PCM audio. "
+            "POST audio bytes to /lang_detect with query param valid_langs "
+            "(comma-separated BCP-47 tags). Returns {lang, conf}."
+        ),
+        "inputs": {
+            "type": "object",
+            "properties": {
+                "body": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Raw PCM audio bytes.",
+                },
+                "valid_langs": {
+                    "type": "string",
+                    "description": "Comma-separated list of candidate language tags (optional).",
+                },
+            },
+            "required": ["body"],
+        },
+        "outputs": {
+            "type": "object",
+            "properties": {
+                "lang": {"type": "string", "description": "Detected BCP-47 tag."},
+                "conf": {"type": "number", "description": "Confidence score 0–1."},
+            },
+        },
+        "tags": ["language-detection", "ovos"],
+        "average_response_size": 64,
+        "tool_call_template": {
+            "name": "ovos_stt",
+            "call_template_type": "http",
+            "http_method": "POST",
+            "url": f"{base_url}/lang_detect",
+            "content_type": "application/octet-stream",
+            "body_field": "body",
+        },
+    }
+
+
+def _status_tool(base_url: str) -> Dict[str, Any]:
+    return {
+        "name": "status",
+        "description": (
+            "Return service health and loaded plugin names. "
+            "GET /status → {status, plugin, lang_plugin}."
+        ),
+        "inputs": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+        "outputs": {
+            "type": "object",
+            "properties": {
+                "status": {"type": "string"},
+                "plugin": {"type": "string"},
+                "lang_plugin": {"type": ["string", "null"]},
+            },
+        },
+        "tags": ["status", "ovos"],
+        "average_response_size": 128,
+        "tool_call_template": {
+            "name": "ovos_stt",
+            "call_template_type": "http",
+            "http_method": "GET",
+            "url": f"{base_url}/status",
+        },
+    }
+
+
+def build_utcp_manual(engine, base_url: str) -> Dict[str, Any]:
+    """Return a UTCP-1.0 manual dict for all endpoints at *base_url*.
+
+    Parameters
+    ----------
+    engine:
+        The STT model container. The manual does not depend on it; the
+        argument keeps the signature shared by the OVOS servers.
+    base_url:
+        Scheme + host + optional port (e.g. ``"http://localhost:8080"``).
+        Must NOT have a trailing slash.
+
+    Returns
+    -------
+    dict
+        A fully-formed UTCP manual ready to be serialised as JSON.
+    """
+    base_url = base_url.rstrip("/")
+    return {
+        "utcp_version": _UTCP_SPEC_VERSION,
+        "manual_version": __version__,
+        "tools": [
+            _stt_tool(base_url),
+            _lang_detect_tool(base_url),
+            _status_tool(base_url),
+        ],
+    }
+
+
+def make_utcp_router(engine) -> APIRouter:
+    """Create a FastAPI router that serves the UTCP manual at ``GET /utcp``.
+
+    The ``base_url`` is inferred from the incoming request so the manual
+    is always correct regardless of where the server is deployed.
+    """
+    router = APIRouter(tags=["utcp"])
+
+    @router.get("/utcp", summary="UTCP manual — tool discovery")
+    def utcp_manual(request: Request):
+        """Return a UTCP-1.0 manual describing every endpoint on this server.
+
+        UTCP clients register this URL as a manual call template:
+
+        ```json
+        {
+          "name": "ovos_stt",
+          "call_template_type": "http",
+          "http_method": "GET",
+          "url": "http://<host>:<port>/utcp"
+        }
+        ```
+        """
+        # Derive base_url from the request so it works behind proxies.
+        base_url = str(request.base_url).rstrip("/")
+        manual = build_utcp_manual(engine, base_url)
+        return JSONResponse(content=manual)
+
+    return router
