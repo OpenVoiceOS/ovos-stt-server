@@ -140,6 +140,7 @@ class ModelContainer(TransformerPipelines):
             The language is never "auto".
         """
         lang = lang or "auto"
+        _reject_invalid_audio(audio)
         audio, context = self.transform_audio(audio)
         if lang == "auto" and context.get("stt_lang"):
             lang = context["stt_lang"]
@@ -169,6 +170,28 @@ class UnresolvedLanguage(ValueError):
     answering 500 rather than telling the caller its request was wrong and
     leaking an internal message.
     """
+
+
+class InvalidInput(ValueError):
+    """The request carries audio or a language the engine cannot use.
+
+    A dedicated class for the same reason as :class:`UnresolvedLanguage`: the
+    handler that answers 400 must not catch every ValueError, so a plugin that
+    fails on its own account keeps answering 500.
+    """
+
+
+def _reject_invalid_audio(audio: AudioData) -> None:
+    """Raise when the audio ends inside a sample.
+
+    PCM is a whole number of samples. A body cut inside one decodes in no
+    engine: numpy answers `buffer size must be a multiple of element size`.
+    """
+    width = audio.sample_width
+    if len(audio.frame_data) % width:
+        raise InvalidInput(
+            f"the audio is {len(audio.frame_data)} bytes, which is not a whole "
+            f"number of {width}-byte samples. Send complete samples.")
 
 
 def _reject_unresolved_lang(lang: Optional[str]) -> str:
@@ -267,6 +290,7 @@ class MultiModelContainer(TransformerPipelines):
             UnresolvedLanguage: no step resolved a language.
         """
         lang = lang or "auto"
+        _reject_invalid_audio(audio)
         audio, context = self.transform_audio(audio)
         if lang == "auto" and context.get("stt_lang"):
             lang = context["stt_lang"]
@@ -321,9 +345,10 @@ def create_app(stt_plugin: str, lang_plugin: str = None, multi: bool = False,
     else:
         model = ModelContainer(stt_plugin, lang_plugin)
 
+    @app.exception_handler(InvalidInput)
     @app.exception_handler(UnresolvedLanguage)
-    async def unresolved_language(request: Request, exc: UnresolvedLanguage):
-        """Answer 400 when the request carries no language the engine can use.
+    async def unresolved_language(request: Request, exc: ValueError):
+        """Answer 400 when the request carries no language or audio the engine can use.
 
         Every vendor-compat router treats the language as optional, because
         the API it imitates does. A request that resolves no language is a

@@ -63,7 +63,7 @@ class DetectsPortuguese:
 def test_the_configured_language_answers_when_nothing_detects(load_stt):
     load_stt.return_value = RejectsAuto
     mc = srv.ModelContainer("fake")
-    assert mc.process_audio(b"x", "auto") == "transcribed:en-US"
+    assert mc.process_audio(srv.AudioData(b"xx", 16000, 2), "auto") == "transcribed:en-US"
 
 
 @patch("ovos_stt_http_server.load_stt_plugin")
@@ -72,7 +72,7 @@ def test_a_detector_that_answers_auto_does_not_reach_the_engine(load_stt):
     mc = srv.ModelContainer("fake")
     mc.lang_plugin = DetectsAuto()
     # "auto" from a detector resolves nothing, so the configured language holds
-    assert mc.process_audio(b"x", "auto") == "transcribed:en-US"
+    assert mc.process_audio(srv.AudioData(b"xx", 16000, 2), "auto") == "transcribed:en-US"
 
 
 @patch("ovos_stt_http_server.load_stt_plugin")
@@ -81,7 +81,7 @@ def test_a_configured_auto_does_not_reach_the_engine(load_stt):
     mc = srv.ModelContainer("fake")
     # nothing resolves a language: the caller must be told, not the engine
     with pytest.raises(ValueError) as err:
-        mc.process_audio(b"x", "auto")
+        mc.process_audio(srv.AudioData(b"xx", 16000, 2), "auto")
     assert "auto" in str(err.value)
 
 
@@ -92,7 +92,7 @@ def test_multi_resolves_auto_through_the_detector(load_stt):
     load_stt.return_value = RejectsAuto
     mc = srv.MultiModelContainer("fake")
     mc.lang_plugin = DetectsPortuguese()
-    assert mc.process_audio(b"x", "auto") == "transcribed:pt-PT"
+    assert mc.process_audio(srv.AudioData(b"xx", 16000, 2), "auto") == "transcribed:pt-PT"
     # the engine is cached under the resolved language, never under "auto"
     assert set(mc.engines) == {"pt-PT"}
 
@@ -101,7 +101,7 @@ def test_multi_resolves_auto_through_the_detector(load_stt):
 def test_multi_falls_back_to_the_configured_language(load_stt):
     load_stt.return_value = RejectsAuto
     mc = srv.MultiModelContainer("fake", config={"lang": "pt-PT"})
-    assert mc.process_audio(b"x", "auto") == "transcribed:pt-pt"
+    assert mc.process_audio(srv.AudioData(b"xx", 16000, 2), "auto") == "transcribed:pt-pt"
     assert "auto" not in mc.engines
 
 
@@ -110,7 +110,7 @@ def test_multi_with_nothing_to_resolve_raises_instead_of_loading_auto(load_stt):
     load_stt.return_value = RejectsAuto
     mc = srv.MultiModelContainer("fake")
     with pytest.raises(ValueError) as err:
-        mc.process_audio(b"x", "auto")
+        mc.process_audio(srv.AudioData(b"xx", 16000, 2), "auto")
     assert "auto" in str(err.value)
     # no engine was loaded under the literal, so the cache stays clean
     assert mc.engines == {}
@@ -209,7 +209,7 @@ def test_a_bad_query_parameter_stays_500(load_stt):
 def test_an_empty_language_uses_the_configured_one(load_stt, lang):
     load_stt.return_value = RejectsAuto
     mc = srv.ModelContainer("fake")
-    assert mc.process_audio(b"x", lang) == "transcribed:en-US"
+    assert mc.process_audio(srv.AudioData(b"xx", 16000, 2), lang) == "transcribed:en-US"
 
 
 @pytest.mark.parametrize("lang", ["", None])
@@ -217,7 +217,7 @@ def test_an_empty_language_uses_the_configured_one(load_stt, lang):
 def test_multi_an_empty_language_uses_the_configured_one(load_stt, lang):
     load_stt.return_value = RejectsAuto
     mm = srv.MultiModelContainer("fake", config={"lang": "pt-PT"})
-    assert mm.process_audio(b"x", lang) == "transcribed:pt-pt"
+    assert mm.process_audio(srv.AudioData(b"xx", 16000, 2), lang) == "transcribed:pt-pt"
 
 
 # ---------- --multi with only the global language ----------
@@ -228,7 +228,7 @@ def test_multi_falls_back_to_the_global_language(load_stt, _config):
     """A --multi plugin section usually holds no language; the global one is the fallback."""
     load_stt.return_value = RejectsAuto
     mm = srv.MultiModelContainer("fake", config={"model": "small"})
-    assert mm.process_audio(b"x", "auto") == "transcribed:en-us"
+    assert mm.process_audio(srv.AudioData(b"xx", 16000, 2), "auto") == "transcribed:en-us"
     assert "auto" not in mm.engines
 
 
@@ -239,8 +239,8 @@ def test_multi_loads_one_engine_per_language_whatever_its_case(load_stt, _config
     both name one model, so the server must not load it twice."""
     load_stt.return_value = RejectsAuto
     mm = srv.MultiModelContainer("fake", config={})
-    mm.process_audio(b"x", "auto")
-    mm.process_audio(b"x", "en-us")
+    mm.process_audio(srv.AudioData(b"xx", 16000, 2), "auto")
+    mm.process_audio(srv.AudioData(b"xx", 16000, 2), "en-us")
     assert list(mm.engines) == ["en-us"]
 
 
@@ -249,4 +249,4 @@ def test_multi_loads_one_engine_per_language_whatever_its_case(load_stt, _config
 def test_multi_prefers_the_plugin_language_over_the_global_one(load_stt, _config):
     load_stt.return_value = RejectsAuto
     mm = srv.MultiModelContainer("fake", config={"lang": "pt-PT"})
-    assert mm.process_audio(b"x", "auto") == "transcribed:pt-pt"
+    assert mm.process_audio(srv.AudioData(b"xx", 16000, 2), "auto") == "transcribed:pt-pt"

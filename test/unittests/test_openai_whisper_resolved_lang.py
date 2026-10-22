@@ -170,10 +170,10 @@ class TestContainerTranscribe:
         monkeypatch.setattr(container, "detect_language",
                             lambda audio, valid=None: ("fr-fr", 0.9))
 
-        utterance, lang = container.transcribe(b"x", "auto")
+        utterance, lang = container.transcribe(srv.AudioData(b"xx", 16000, 2), "auto")
         assert lang == "fr-fr"
         assert utterance == "transcribed:fr-fr"
-        assert container.process_audio(b"x", "auto") == "transcribed:fr-fr"
+        assert container.process_audio(srv.AudioData(b"xx", 16000, 2), "auto") == "transcribed:fr-fr"
 
     def test_model_container_reports_the_fallback_language(self, monkeypatch):
         """A control: a failed detection reports the engine's own language."""
@@ -196,4 +196,4 @@ class TestContainerTranscribe:
             raise RuntimeError("no detector")
 
         monkeypatch.setattr(container, "detect_language", boom)
-        assert container.transcribe(b"x", "auto")[1] == "pt-pt"
+        assert container.transcribe(srv.AudioData(b"xx", 16000, 2), "auto")[1] == "pt-pt"

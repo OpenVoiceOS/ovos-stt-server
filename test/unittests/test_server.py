@@ -43,7 +43,7 @@ def test_model_container_basic(load_stt):
     mc = srv.ModelContainer("fake")
     assert isinstance(mc.engine, FakeSTT)
     assert mc.lang_plugin is None
-    assert mc.process_audio(b"x", "en") == "transcribed:en"
+    assert mc.process_audio(srv.AudioData(b"xx", 16000, 2), "en") == "transcribed:en"
     assert mc.detect_language(b"x") == ("en", 0.99)
 
 
@@ -59,7 +59,7 @@ def test_model_container_process_audio_auto_detects_language(load_stt):
     """
     load_stt.return_value = FakeSTT
     mc = srv.ModelContainer("fake")
-    assert mc.process_audio(b"x", "auto") == "transcribed:en"
+    assert mc.process_audio(srv.AudioData(b"xx", 16000, 2), "auto") == "transcribed:en"
 
 
 @patch("ovos_stt_http_server.load_stt_plugin")
@@ -68,7 +68,7 @@ def test_model_container_process_audio_auto_falls_back_to_engine_lang_on_detect_
     never the literal "auto"."""
     load_stt.return_value = FailingDetectSTT
     mc = srv.ModelContainer("fake")
-    assert mc.process_audio(b"x", "auto") == "transcribed:pt-pt"
+    assert mc.process_audio(srv.AudioData(b"xx", 16000, 2), "auto") == "transcribed:pt-pt"
 
 
 @patch("ovos_stt_http_server.load_stt_plugin")
@@ -77,8 +77,8 @@ def test_model_container_process_audio_stt_lang_context_wins_over_detection(load
     before any engine-side detection is attempted."""
     load_stt.return_value = FakeSTT
     mc = srv.ModelContainer("fake")
-    with patch.object(mc, "transform_audio", return_value=(b"x", {"stt_lang": "fr-fr"})):
-        assert mc.process_audio(b"x", "auto") == "transcribed:fr-fr"
+    with patch.object(mc, "transform_audio", return_value=(srv.AudioData(b"xx", 16000, 2), {"stt_lang": "fr-fr"})):
+        assert mc.process_audio(srv.AudioData(b"xx", 16000, 2), "auto") == "transcribed:fr-fr"
 
 
 @patch("ovos_stt_http_server.load_stt_plugin")
@@ -116,11 +116,11 @@ def test_multi_model_container_lazy_loads(load_stt):
     load_stt.return_value = FakeSTT
     mm = srv.MultiModelContainer("fake")
     assert mm.engines == {}
-    out = mm.process_audio(b"x", "en")
+    out = mm.process_audio(srv.AudioData(b"xx", 16000, 2), "en")
     assert out == "transcribed:en"
     assert "en" in mm.engines
     # second call hits the cached engine
-    out2 = mm.process_audio(b"x", "en")
+    out2 = mm.process_audio(srv.AudioData(b"xx", 16000, 2), "en")
     assert out2 == "transcribed:en"
     mm.unload_engine("en")
     assert "en" not in mm.engines
@@ -138,8 +138,8 @@ def test_multi_model_request_does_not_change_the_configured_lang(load_stt):
     load_stt.return_value = FakeSTT
     mm = srv.MultiModelContainer("fake", config={"lang": "en-us", "model": "small"})
 
-    mm.process_audio(b"x", "pt-pt")
-    mm.process_audio(b"x", "de")
+    mm.process_audio(srv.AudioData(b"xx", 16000, 2), "pt-pt")
+    mm.process_audio(srv.AudioData(b"xx", 16000, 2), "de")
 
     assert mm.config == {"lang": "en-us", "model": "small"}
     assert mm.engines["pt-pt"].config == {"lang": "pt-pt", "model": "small"}
@@ -162,7 +162,7 @@ def test_multi_model_lang_detect(load_stt, load_lang):
         mm = srv.MultiModelContainer("fake", lang_plugin="lp")
     assert mm.detect_language(b"x") == ("de", 0.77)
     # Trigger load_engine path that binds the lang plugin (line 85)
-    mm.process_audio(b"x", "en")
+    mm.process_audio(srv.AudioData(b"xx", 16000, 2), "en")
     assert hasattr(mm.engines["en"], "bound")
 
 
@@ -346,7 +346,7 @@ def test_transformers_off_by_default(load_stt):
     mc = srv.ModelContainer("fake")
     assert mc.audio_transformers.plugins == []
     assert mc.utterance_transformers.plugins == []
-    assert mc.process_audio(b"x", "en") == "transcribed:en"
+    assert mc.process_audio(srv.AudioData(b"xx", 16000, 2), "en") == "transcribed:en"
 
 
 @patch("ovos_stt_http_server.load_stt_plugin")
@@ -354,7 +354,7 @@ def test_utterance_transformers_rewrite_transcript(load_stt):
     load_stt.return_value = FakeSTT
     mc = srv.ModelContainer("fake")
     mc.utterance_transformers = FakeUtteranceService()
-    assert mc.process_audio(b"x", "en") == "corrected:transcribed:en"
+    assert mc.process_audio(srv.AudioData(b"xx", 16000, 2), "en") == "corrected:transcribed:en"
 
 
 @patch("ovos_stt_http_server.load_stt_plugin")
@@ -370,11 +370,11 @@ def test_audio_transformers_run_before_stt_and_set_lang(load_stt):
     load_stt.return_value = RecordingSTT
     mc = srv.ModelContainer("fake")
     mc.audio_transformers = FakeAudioService()
-    audio = srv.AudioData(b"abc", 16000, 2)
+    audio = srv.AudioData(b"abcd", 16000, 2)
     out = mc.process_audio(audio, "auto")
     assert out == "ok"
     # chain modified the audio and its stt_lang resolved the "auto" lang
-    assert seen["audio"].frame_data == b"cba"
+    assert seen["audio"].frame_data == b"dcba"
     assert seen["language"] == "de"
 
 
@@ -390,7 +390,7 @@ def test_explicit_lang_wins_over_detected(load_stt):
     load_stt.return_value = RecordingSTT
     mc = srv.ModelContainer("fake")
     mc.audio_transformers = FakeAudioService()
-    mc.process_audio(srv.AudioData(b"abc", 16000, 2), "pt")
+    mc.process_audio(srv.AudioData(b"abcd", 16000, 2), "pt")
     assert seen["language"] == "pt"
 
 
@@ -399,8 +399,8 @@ def test_multi_model_container_shares_transformers(load_stt):
     load_stt.return_value = FakeSTT
     mm = srv.MultiModelContainer("fake")
     mm.utterance_transformers = FakeUtteranceService()
-    assert mm.process_audio(b"x", "en") == "corrected:transcribed:en"
-    assert mm.process_audio(b"x", "de") == "corrected:transcribed:de"
+    assert mm.process_audio(srv.AudioData(b"xx", 16000, 2), "en") == "corrected:transcribed:en"
+    assert mm.process_audio(srv.AudioData(b"xx", 16000, 2), "de") == "corrected:transcribed:de"
 
 
 # ---------- MCP is opt-in via enable_mcp / --mcp ----------
